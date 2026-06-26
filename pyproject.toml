@@ -1,0 +1,179 @@
+[project]
+name = "forgemind"
+version = "0.1.0"
+description = "Industrial knowledge management through knowledge graphs, hybrid retrieval, and explainable AI reasoning."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+authors = [
+    { name = "ForgeMind Team" },
+]
+keywords = ["knowledge-graph", "industrial-ai", "rag", "explainable-ai", "maintenance"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # ── Web Framework ────────────────────────────────────────
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    # ── Configuration ────────────────────────────────────────
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "python-dotenv>=1.0.0",
+    # ── Logging ──────────────────────────────────────────────
+    "structlog>=24.4.0",
+    # ── Document Processing ──────────────────────────────────
+    "pdfplumber>=0.11.0",
+    # ── NLP & Extraction ─────────────────────────────────────
+    "spacy>=3.8.0",
+    # ── Embeddings & Vector Store ────────────────────────────
+    "sentence-transformers>=3.3.0",
+    "chromadb>=0.5.0",
+    # ── Knowledge Graph ──────────────────────────────────────
+    "networkx>=3.4.0",
+    # ── LLM Integration ──────────────────────────────────────
+    "openai>=1.55.0",
+    # ── Utilities ────────────────────────────────────────────
+    "httpx>=0.28.0",
+    "nltk>=3.9.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # ── Testing ──────────────────────────────────────────────
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
+    "hypothesis>=6.118.0",
+    "pytest-archon>=0.0.6",
+    # ── Linting & Formatting ─────────────────────────────────
+    "ruff>=0.8.0",
+    # ── Type Checking ────────────────────────────────────────
+    "mypy>=1.14.0",
+    # ── Security ─────────────────────────────────────────────
+    "bandit[toml]>=1.8.0",
+    "pip-audit>=2.7.0",
+    # ── Git Hooks ────────────────────────────────────────────
+    "pre-commit>=4.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/forgemind"]
+
+# ══════════════════════════════════════════════════════════════
+# Ruff — Linting & Formatting
+# Replaces: black, isort, flake8, pyupgrade, flake8-bugbear
+# ══════════════════════════════════════════════════════════════
+
+[tool.ruff]
+target-version = "py312"
+line-length = 99
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E4", "E7", "E9",   # pycodestyle (errors)
+    "F",                  # pyflakes
+    "I",                  # isort (import sorting)
+    "UP",                 # pyupgrade (modernize syntax)
+    "B",                  # flake8-bugbear (common bugs)
+    "SIM",                # flake8-simplify
+    "N",                  # pep8-naming
+    "D",                  # pydocstyle (docstring enforcement)
+    "ANN",                # flake8-annotations (type hint enforcement)
+    "S",                  # flake8-bandit (security)
+    "RUF",                # Ruff-specific rules
+]
+ignore = [
+    "D100",               # Missing docstring in public module (too noisy during scaffolding)
+    "D104",               # Missing docstring in public package
+    "D203",               # 1 blank line before class docstring (conflicts with D211)
+    "D213",               # Multi-line docstring summary on second line (conflicts with D212)
+    "ANN101",             # Missing type annotation for self
+    "ANN102",             # Missing type annotation for cls
+    "S101",               # Use of assert (needed in tests)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "D",                  # No docstring enforcement in tests
+    "ANN",                # No type annotation enforcement in tests
+    "S101",               # assert is fine in tests
+]
+"scripts/**/*.py" = [
+    "D",                  # No docstring enforcement in scripts
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+# ══════════════════════════════════════════════════════════════
+# Mypy — Static Type Checking
+# ══════════════════════════════════════════════════════════════
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = [
+    "chromadb.*",
+    "pdfplumber.*",
+    "sentence_transformers.*",
+    "spacy.*",
+    "networkx.*",
+    "nltk.*",
+]
+ignore_missing_imports = true
+
+# ══════════════════════════════════════════════════════════════
+# Pytest — Testing
+# ══════════════════════════════════════════════════════════════
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --strict-markers --tb=short"
+markers = [
+    "unit: Unit tests (no I/O, no external dependencies)",
+    "integration: Integration tests (real adapters, real I/O)",
+    "architecture: Architectural fitness tests (import rules, boundaries)",
+    "golden: Golden file comparison tests (benchmark queries)",
+    "slow: Tests that take > 5 seconds",
+]
+
+# ══════════════════════════════════════════════════════════════
+# Bandit — Security Scanning
+# ══════════════════════════════════════════════════════════════
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]  # assert usage is fine

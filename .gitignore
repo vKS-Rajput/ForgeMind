@@ -1,0 +1,59 @@
+# ══════════════════════════════════════════════════════════════
+# ForgeMind .gitignore
+# ══════════════════════════════════════════════════════════════
+
+# ── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# ── Virtual Environments ─────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Testing ──────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+.hypothesis/
+
+# ── Type Checking ────────────────────────────────────────────
+.mypy_cache/
+.pytype/
+.pyright/
+
+# ── IDE ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Environment & Secrets ────────────────────────────────────
+.env
+.env.local
+.env.prod
+.env.production
+# .env.example and .env.test ARE committed (no secrets)
+
+# ── Data & Persistence (generated at runtime) ────────────────
+data/chromadb/
+data/graph.json
+data/embeddings/
+
+# ── Ruff ─────────────────────────────────────────────────────
+.ruff_cache/
+
+# ── OS ───────────────────────────────────────────────────────
+*.log
+*.tmp

@@ -1,0 +1,21 @@
+# ForgeMind Code Ownership
+#
+# Each bounded context has an owner responsible for reviewing changes.
+# Architecture tests and ADRs require tech lead review.
+
+# ── Shared Infrastructure ────────────────────────────────────
+/src/forgemind/shared/              @core-team
+
+# ── Bounded Contexts ─────────────────────────────────────────
+/src/forgemind/knowledge/           @knowledge-team
+/src/forgemind/graph/               @graph-team
+/src/forgemind/retrieval/           @retrieval-team
+/src/forgemind/reasoning/           @ai-team
+/src/forgemind/api/                 @api-team
+
+# ── Protected Files (require tech lead review) ───────────────
+/tests/architecture/                @tech-lead
+/docs/adr/                          @tech-lead
+/pyproject.toml                     @core-team
+/.pre-commit-config.yaml            @core-team
+/CODEOWNERS                         @tech-lead

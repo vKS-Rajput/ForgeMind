@@ -1,0 +1,1 @@
+"""Reasoning adapters — OpenAI, Ollama."""
