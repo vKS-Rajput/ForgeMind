@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import Any
 
 import structlog
 
@@ -47,8 +48,9 @@ def configure_logging(
     ]
 
     # Select renderer based on format / TTY detection
+    renderer: Any
     if log_format == "console" or sys.stderr.isatty():
-        renderer: structlog.types.Processor = structlog.dev.ConsoleRenderer()
+        renderer = structlog.dev.ConsoleRenderer()
     else:
         renderer = structlog.processors.JSONRenderer()
 

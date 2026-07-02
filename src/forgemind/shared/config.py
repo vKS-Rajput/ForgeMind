@@ -19,8 +19,6 @@ Layer: Infrastructure
 Dependencies: pydantic-settings
 """
 
-from __future__ import annotations
-
 import os
 from functools import lru_cache
 

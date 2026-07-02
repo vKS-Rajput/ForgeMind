@@ -5,6 +5,7 @@ and golden tests. Fixtures follow the principle of least surprise:
 they provide minimal, predictable test data.
 """
 
+# pyrefly: ignore [missing-import]
 import pytest
 
 from forgemind.shared.config import AppSettings
