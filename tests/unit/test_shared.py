@@ -31,13 +31,22 @@ class TestErrorHierarchy:
         )
 
         errors = [
-            IngestionError, DocumentParseError, ChunkingError,
-            UnsupportedFormatError, EntityExtractionError,
-            RelationshipExtractionError, GraphConstructionError,
-            GraphQueryError, EntityNotFoundError,
-            VectorSearchError, EmbeddingError,
-            LLMProviderError, PromptConstructionError,
-            ResponseParseError, RetrievalError, ReasoningError,
+            IngestionError,
+            DocumentParseError,
+            ChunkingError,
+            UnsupportedFormatError,
+            EntityExtractionError,
+            RelationshipExtractionError,
+            GraphConstructionError,
+            GraphQueryError,
+            EntityNotFoundError,
+            VectorSearchError,
+            EmbeddingError,
+            LLMProviderError,
+            PromptConstructionError,
+            ResponseParseError,
+            RetrievalError,
+            ReasoningError,
             ConfigurationError,
         ]
 

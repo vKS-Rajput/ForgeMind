@@ -96,7 +96,7 @@ def chunk_text(
 
             # Start new chunk with overlap from previous sentences
             overlap_sentences = _build_overlap(current_chunk, overlap_size)
-            current_chunk = overlap_sentences + [sentence]
+            current_chunk = [*overlap_sentences, sentence]
             current_length = sum(len(s) for s in current_chunk) + len(current_chunk) - 1
         else:
             current_chunk.append(sentence)
@@ -270,7 +270,4 @@ def validate_relationship(
         return True
 
     # In non-strict mode, RELATED_TO is always valid
-    if not strict and relation_type == RelationType.RELATED_TO:
-        return True
-
-    return False
+    return not strict and relation_type == RelationType.RELATED_TO

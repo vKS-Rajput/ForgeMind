@@ -60,9 +60,7 @@ class TestDomainIndependence:
 
     @pytest.mark.parametrize("context", BOUNDED_CONTEXTS)
     @pytest.mark.parametrize("framework", FRAMEWORK_MODULES)
-    def test_domain_does_not_import_frameworks(
-        self, context: str, framework: str
-    ) -> None:
+    def test_domain_does_not_import_frameworks(self, context: str, framework: str) -> None:
         """Domain layer must not import external frameworks."""
         (
             archrule(f"{context} domain must not import {framework}")

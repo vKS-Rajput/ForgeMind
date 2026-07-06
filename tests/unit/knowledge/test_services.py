@@ -69,7 +69,7 @@ class TestChunkText:
             chunk_text("Hello.", overlap_size=-1)
 
     def test_overlap_exceeds_chunk_size_raises(self):
-        with pytest.raises(ValueError, match="overlap_size.*must be < max_chunk_size"):
+        with pytest.raises(ValueError, match=r"overlap_size.*must be < max_chunk_size"):
             chunk_text("Hello.", max_chunk_size=100, overlap_size=100)
 
     def test_zero_overlap(self):
