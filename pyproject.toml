@@ -21,6 +21,7 @@ dependencies = [
     # ── Web Framework ────────────────────────────────────────
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.9",     # Required by FastAPI for file uploads
     # ── Configuration ────────────────────────────────────────
     "pydantic>=2.10.0",
     "pydantic-settings>=2.7.0",
@@ -51,6 +52,8 @@ dev = [
     "pytest-cov>=6.0.0",
     "hypothesis>=6.118.0",
     "pytest-archon>=0.0.6",
+    # ── Test Fixtures ────────────────────────────────────────
+    "fpdf2>=2.8.0",               # Generates synthetic PDFs for integration tests
     # ── Linting & Formatting ─────────────────────────────────
     "ruff>=0.8.0",
     # ── Type Checking ────────────────────────────────────────
