@@ -1,15 +1,17 @@
-"""Document API routes — upload, list, and inspect documents.
+"""Document API routes — upload, analyze, list, and inspect documents.
 
 These routes expose the document ingestion pipeline via HTTP.
-Users can upload PDF files, list all ingested documents, and
-inspect the chunks produced from any document.
+Users can upload PDF files, get AI-powered analysis, list all
+ingested documents, and inspect the chunks produced.
 
 Routes:
-  POST   /api/v1/documents/upload    — Upload and ingest a PDF file.
-  POST   /api/v1/documents/text      — Ingest raw text directly.
-  GET    /api/v1/documents           — List all ingested documents.
-  GET    /api/v1/documents/{id}      — Get a single document by ID.
-  GET    /api/v1/documents/{id}/chunks — Get all chunks for a document.
+  POST   /api/v1/documents/upload       — Upload and ingest a PDF file.
+  POST   /api/v1/documents/text         — Ingest raw text directly.
+  GET    /api/v1/documents              — List all ingested documents.
+  GET    /api/v1/documents/stats        — Get system statistics.
+  GET    /api/v1/documents/{id}         — Get a single document by ID.
+  GET    /api/v1/documents/{id}/chunks  — Get all chunks for a document.
+  GET    /api/v1/documents/{id}/analyze — Analyze a document for insights.
 """
 
 from __future__ import annotations
@@ -23,17 +25,20 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from forgemind.api.state import AppState
+from forgemind.knowledge.adapters.analysis_service import DocumentAnalyzer
 from forgemind.shared.errors import IngestionError, UnsupportedFormatError
 from forgemind.shared.logging import get_logger
+from forgemind.shared.types import DocumentId
 
 logger = get_logger(__name__)
 
 router = APIRouter(tags=["Documents"])
 
+# ── Shared analyzer instance (stateless, thread-safe) ────────────
+_analyzer = DocumentAnalyzer()
+
 
 # ── Response Models ──────────────────────────────────────────────
-# Pydantic models for API responses. These control what the API
-# returns to the client and provide automatic OpenAPI documentation.
 
 
 class DocumentResponse(BaseModel):
@@ -61,13 +66,14 @@ class ChunkResponse(BaseModel):
 
 
 class IngestionResponse(BaseModel):
-    """API response after successful ingestion."""
+    """API response after successful ingestion — includes analysis."""
 
     message: str
     document_id: str
     title: str
     page_count: int
     chunk_count: int
+    analysis: dict[str, Any]
 
 
 class TextIngestionRequest(BaseModel):
@@ -84,16 +90,48 @@ class StatsResponse(BaseModel):
     total_chunks: int
 
 
+class AnalysisResponse(BaseModel):
+    """API response for document analysis results."""
+
+    document_id: str
+    title: str
+    equipment: list[str]
+    parts: list[str]
+    materials: list[str]
+    instruments: list[str]
+    parameters: list[str]
+    symptoms: list[str]
+    actions: list[str]
+    key_sentences: list[str]
+    summary_stats: dict[str, Any]
+
+
 # ── Helper ───────────────────────────────────────────────────────
 
 
 def _get_state(request: Request) -> AppState:
-    """Extract the AppState from the FastAPI request.
-
-    This is how routes access the wired-up adapters. The AppState
-    is set during application startup in the lifespan handler.
-    """
+    """Extract the AppState from the FastAPI request."""
     return request.app.state.forgemind  # type: ignore[no-any-return]
+
+
+def _build_analysis_dict(text: str) -> dict[str, Any]:
+    """Run the analyzer on text and return a serializable dict.
+
+    This is used by both the upload endpoint (immediate analysis)
+    and the dedicated /analyze endpoint (on-demand analysis).
+    """
+    insights = _analyzer.analyze_text(text)
+    return {
+        "equipment": insights.equipment,
+        "parts": insights.parts,
+        "materials": insights.materials,
+        "instruments": insights.instruments,
+        "parameters": insights.parameters,
+        "symptoms": insights.symptoms,
+        "actions": insights.actions,
+        "key_sentences": insights.key_sentences,
+        "summary_stats": insights.summary_stats,
+    }
 
 
 # ── Routes ───────────────────────────────────────────────────────
@@ -104,27 +142,17 @@ def _get_state(request: Request) -> AppState:
     response_model=IngestionResponse,
     status_code=201,
     summary="Upload and ingest a PDF document",
+    description=(
+        "Upload a PDF file to run it through the ingestion pipeline. "
+        "The file is parsed, chunked at sentence boundaries, stored, "
+        "and automatically analyzed for equipment, parameters, symptoms, "
+        "and corrective actions."
+    ),
 )
 async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
-    """Upload a PDF file and run it through the ingestion pipeline.
-
-    The file is saved to a temporary location, parsed with pdfplumber,
-    chunked at sentence boundaries, and stored in the repositories.
-
-    Args:
-        request: The FastAPI request (provides access to app state).
-        file: The uploaded PDF file.
-
-    Returns:
-        Ingestion result with document ID, title, and chunk count.
-
-    Raises:
-        400: If the file format is not supported or content is duplicate.
-        422: If the file is corrupt or cannot be parsed.
-    """
+    """Upload a PDF file and run it through the full pipeline with analysis."""
     state = _get_state(request)
 
-    # Validate the file was actually uploaded
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided.")
 
@@ -134,18 +162,20 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
         content_type=file.content_type,
     )
 
-    # Save the uploaded file to a temporary location so pdfplumber
-    # can read it from disk (pdfplumber requires a file path).
+    # Save uploaded file to a temp location for pdfplumber
     temp_dir = tempfile.mkdtemp(prefix="forgemind_upload_")
     temp_path = Path(temp_dir) / file.filename
 
     try:
-        # Write the uploaded bytes to the temp file
         with open(temp_path, "wb") as temp_file:
             shutil.copyfileobj(file.file, temp_file)
 
-        # Run the full ingestion pipeline
+        # Run the ingestion pipeline
         result = state.ingestion_service.ingest_document(str(temp_path))
+
+        # Run analysis on the full document text
+        full_text = " ".join(chunk.content for chunk in result.chunks)
+        analysis = _build_analysis_dict(full_text)
 
         return {
             "message": f"Successfully ingested '{result.document.title}'",
@@ -153,6 +183,7 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
             "title": result.document.title,
             "page_count": result.document.page_count,
             "chunk_count": len(result.chunks),
+            "analysis": analysis,
         }
 
     except UnsupportedFormatError as error:
@@ -170,7 +201,6 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
             detail=f"Failed to process file: {error}",
         ) from error
     finally:
-        # Clean up the temporary file
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
@@ -179,12 +209,10 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
     response_model=IngestionResponse,
     status_code=201,
     summary="Ingest raw text content",
+    description="Paste raw text to ingest it directly without uploading a file.",
 )
 async def ingest_text(request: Request, body: TextIngestionRequest) -> dict[str, Any]:
-    """Ingest raw text content directly, without uploading a file.
-
-    Useful for pasting text from manuals, reports, or other sources.
-    """
+    """Ingest raw text content with automatic analysis."""
     state = _get_state(request)
 
     try:
@@ -193,12 +221,16 @@ async def ingest_text(request: Request, body: TextIngestionRequest) -> dict[str,
             title=body.title,
         )
 
+        full_text = " ".join(chunk.content for chunk in result.chunks)
+        analysis = _build_analysis_dict(full_text)
+
         return {
             "message": f"Successfully ingested '{result.document.title}'",
             "document_id": str(result.document.id),
             "title": result.document.title,
             "page_count": result.document.page_count,
             "chunk_count": len(result.chunks),
+            "analysis": analysis,
         }
 
     except IngestionError as error:
@@ -253,7 +285,7 @@ async def get_stats(request: Request) -> dict[str, int]:
 async def get_document(request: Request, document_id: str) -> dict[str, Any]:
     """Get a single document by its unique ID."""
     state = _get_state(request)
-    document = state.document_repository.get(document_id)
+    document = state.document_repository.get(DocumentId(document_id))
 
     if document is None:
         raise HTTPException(
@@ -278,22 +310,17 @@ async def get_document(request: Request, document_id: str) -> dict[str, Any]:
     summary="Get all chunks for a document",
 )
 async def get_document_chunks(request: Request, document_id: str) -> list[dict[str, Any]]:
-    """Get all chunks belonging to a document, sorted by index.
-
-    This shows exactly how the document was split into chunks,
-    including the page number and character offsets for each chunk.
-    """
+    """Get all chunks belonging to a document, sorted by index."""
     state = _get_state(request)
 
-    # Verify the document exists first
-    document = state.document_repository.get(document_id)
+    document = state.document_repository.get(DocumentId(document_id))
     if document is None:
         raise HTTPException(
             status_code=404,
             detail=f"Document with ID '{document_id}' not found.",
         )
 
-    chunks = state.chunk_repository.get_chunks_for_document(document_id)
+    chunks = state.chunk_repository.get_chunks_for_document(DocumentId(document_id))
 
     return [
         {
@@ -307,3 +334,42 @@ async def get_document_chunks(request: Request, document_id: str) -> list[dict[s
         }
         for chunk in chunks
     ]
+
+
+@router.get(
+    "/documents/{document_id}/analyze",
+    response_model=AnalysisResponse,
+    summary="Analyze a document for insights",
+    description=(
+        "Extract structured insights from an ingested document: "
+        "equipment names, part numbers, operating parameters, "
+        "failure symptoms, corrective actions, and key sentences. "
+        "Analysis is pattern-based and runs entirely offline."
+    ),
+)
+async def analyze_document(request: Request, document_id: str) -> dict[str, Any]:
+    """Analyze a document and return extracted insights."""
+    state = _get_state(request)
+
+    document = state.document_repository.get(DocumentId(document_id))
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Document with ID '{document_id}' not found.",
+        )
+
+    chunks = state.chunk_repository.get_chunks_for_document(DocumentId(document_id))
+    if not chunks:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No chunks found for document '{document_id}'.",
+        )
+
+    full_text = " ".join(chunk.content for chunk in chunks)
+    analysis = _build_analysis_dict(full_text)
+
+    return {
+        "document_id": str(document.id),
+        "title": document.title,
+        **analysis,
+    }

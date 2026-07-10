@@ -27,7 +27,9 @@ def generate_pump_manual() -> Path:
     pdf.ln(3)
     pdf.set_font("Helvetica", "B", size=14)
     pdf.cell(w=0, text="Pump P-101 Maintenance Manual", new_x="LMARGIN", new_y="NEXT", align="C")
-    pdf.cell(w=0, text="Document Revision 2.4 | June 2025", new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.cell(
+        w=0, text="Document Revision 2.4 | June 2025", new_x="LMARGIN", new_y="NEXT", align="C"
+    )
     pdf.ln(10)
 
     pdf.set_font("Helvetica", "B", size=12)
@@ -176,12 +178,12 @@ def generate_pump_manual() -> Path:
 
     # ── Save ─────────────────────────────────────────────────────
     pdf.output(str(output_path))
-    print(f"✅ Generated: {output_path}")
-    print(f"   Pages: 3")
+    print(f"[OK] Generated: {output_path}")
+    print("   Pages: 3")
     print(f"   Size:  {output_path.stat().st_size / 1024:.1f} KB")
     print()
     print("Upload this file at: http://localhost:8000/docs")
-    print('  → POST /api/v1/documents/upload → "Try it out" → Choose File')
+    print('  POST /api/v1/documents/upload -> "Try it out" -> Choose File')
 
     return output_path
 

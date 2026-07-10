@@ -1,58 +1,75 @@
-# Meridian Petrochemical Plant — Demo Dataset
+# ForgeMind Test Data
 
-## Overview
+This directory contains sample documents for testing the ForgeMind ingestion and analysis pipeline.
 
-The demo dataset represents a fictional mid-size chemical processing facility called **Meridian Petrochemical Plant**. It provides realistic industrial maintenance data for demonstrating ForgeMind's capabilities.
+## Quick Start
 
-## Facility Description
+```bash
+# 1. Generate the test PDF
+uv run python data/demo/generate_test_pdf.py
 
-- **Location**: Fictional coastal industrial zone
-- **Operations**: Chemical processing and petrochemical refining
-- **Scale**: 3 production lines, 12 major assets
-- **History**: 2 years of operational data
+# 2. Start the API server
+uv run uvicorn forgemind.api.app:create_app --factory --reload --port 8000
 
-## Major Assets
+# 3. Open the Swagger UI
+# http://localhost:8000/docs
+```
 
-| Asset ID | Type | Location | Status |
-| :--- | :--- | :--- | :--- |
-| P-101 | Centrifugal Pump | Production Line 1 | Active |
-| P-102 | Centrifugal Pump | Production Line 1 | Active |
-| C-201 | Reciprocating Compressor | Production Line 2 | Active |
-| C-202 | Screw Compressor | Production Line 2 | Under Maintenance |
-| HX-301 | Shell & Tube Heat Exchanger | Production Line 3 | Active |
-| HX-302 | Plate Heat Exchanger | Production Line 3 | Active |
-| V-101 | Control Valve | Production Line 1 | Active |
-| V-201 | Safety Valve | Production Line 2 | Active |
+## How to Test
 
-## Dataset Components
+### Option 1: Swagger UI (Recommended)
 
-### `manuals/`
-Synthetic equipment maintenance manuals (PDF format):
-- Operating parameters and specifications
-- Component lists and parts numbers
-- Maintenance schedules and procedures
-- Troubleshooting guides (symptom → cause → action)
-- Safety warnings
+1. Open **http://localhost:8000/docs** in your browser.
+2. Click **POST /api/v1/documents/upload** -> **Try it out**.
+3. Click **Choose File** -> select `pump_p101_manual.pdf` (or any PDF).
+4. Click **Execute**.
+5. The response shows the document ID, chunk count, and **analysis results** with extracted equipment, parameters, symptoms, and actions.
+6. Copy the `document_id` and use **GET /api/v1/documents/{id}/analyze** for a dedicated analysis view.
 
-### `incidents/`
-Synthetic incident reports (JSON format):
-- Incident ID, date, severity, affected asset
-- Description, root cause, resolution
-- Cross-references to related incidents
+### Option 2: PowerShell / cURL
 
-### `work_orders/`
-Synthetic maintenance work orders (JSON format):
-- Work order ID, date, asset, type (corrective/preventive)
-- Description, parts used, labor hours, outcome
+```powershell
+# Upload a PDF
+curl.exe -X POST "http://localhost:8000/api/v1/documents/upload" -F "file=@data/demo/pump_p101_manual.pdf"
 
-### `golden_queries/`
-10 benchmark questions with expected answer patterns for testing.
+# List all documents
+curl.exe http://localhost:8000/api/v1/documents
 
-## Key Narrative: The Cascading Failure
+# Get analysis for a document
+curl.exe http://localhost:8000/api/v1/documents/DOCUMENT_ID/analyze
 
-The dataset includes a narrative arc of interconnected incidents:
-1. Vibration alert on Pump P-101 (INC-2024-0029)
-2. Bearing replacement on P-101 (INC-2024-0038)
-3. Coupling misalignment and overheating (INC-2024-0042)
+# Get chunks with page numbers
+curl.exe http://localhost:8000/api/v1/documents/DOCUMENT_ID/chunks
 
-This chain demonstrates ForgeMind's ability to trace causal relationships across time.
+# System stats
+curl.exe http://localhost:8000/api/v1/documents/stats
+
+# Ingest raw text
+curl.exe -X POST "http://localhost:8000/api/v1/documents/text" -H "Content-Type: application/json" -d "{\"text\": \"Pump P-101 operates at 3000 RPM. The bearing temperature must not exceed 80 degrees Celsius.\", \"title\": \"Quick Note\"}"
+```
+
+### Option 3: Upload Your Own Documents
+
+You can upload **any PDF document** through the API. The analyzer works best with industrial and maintenance documents, but will extract useful information from any text-based PDF.
+
+**Supported formats:** `.pdf`
+
+**What gets extracted:**
+- Equipment names with tag numbers (Pump P-101, Motor M-205)
+- Part and model numbers (SKF 6205-2RS, John Crane Type 2100)
+- Material specifications (AISI 4140, Grade 25)
+- Safety instrument tags (PSV-101, FS-101)
+- Operating parameters with units (3000 RPM, 80 degrees Celsius)
+- Failure symptoms (excessive vibration, bearing failure)
+- Corrective actions (replace, inspect, shut down)
+- Key sentences (most information-dense)
+
+## Sample Document: `pump_p101_manual.pdf`
+
+A 3-page synthetic maintenance manual for the fictional Meridian Petrochemical Plant, Pump P-101.
+
+**Page 1:** Equipment overview, specifications, operating parameters
+**Page 2:** Preventive maintenance schedule (daily, weekly, monthly, semi-annual, annual)
+**Page 3:** Troubleshooting guide (symptoms, causes, corrective actions)
+
+Generated by `generate_test_pdf.py` using the `fpdf2` library.
