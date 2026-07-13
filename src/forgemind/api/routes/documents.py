@@ -4,14 +4,25 @@ These routes expose the document ingestion pipeline via HTTP.
 Users can upload PDF files, get AI-powered analysis, list all
 ingested documents, and inspect the chunks produced.
 
+Every uploaded document automatically:
+  1. Gets parsed and chunked (existing pipeline).
+  2. Gets analyzed for entities (equipment, parts, symptoms, etc.).
+  3. Gets its entities normalized into typed KnowledgeEntity objects.
+  4. Gets relationships extracted from chunk co-occurrence patterns.
+  5. Gets merged into the organizational knowledge graph.
+  6. Produces a KnowledgeEvent audit trail.
+
+This is what transforms ForgeMind from "document search" into
+"organizational memory that learns with every upload."
+
 Routes:
-  POST   /api/v1/documents/upload       — Upload and ingest a PDF file.
-  POST   /api/v1/documents/text         — Ingest raw text directly.
-  GET    /api/v1/documents              — List all ingested documents.
-  GET    /api/v1/documents/stats        — Get system statistics.
-  GET    /api/v1/documents/{id}         — Get a single document by ID.
-  GET    /api/v1/documents/{id}/chunks  — Get all chunks for a document.
-  GET    /api/v1/documents/{id}/analyze — Analyze a document for insights.
+  POST   /api/v1/documents/upload       - Upload and ingest a PDF file.
+  POST   /api/v1/documents/text         - Ingest raw text directly.
+  GET    /api/v1/documents              - List all ingested documents.
+  GET    /api/v1/documents/stats        - Get system statistics.
+  GET    /api/v1/documents/{id}         - Get a single document by ID.
+  GET    /api/v1/documents/{id}/chunks  - Get all chunks for a document.
+  GET    /api/v1/documents/{id}/analyze - Analyze a document for insights.
 """
 
 from __future__ import annotations
@@ -26,6 +37,8 @@ from pydantic import BaseModel
 
 from forgemind.api.state import AppState
 from forgemind.knowledge.adapters.analysis_service import DocumentAnalyzer
+from forgemind.knowledge.adapters.entity_normalizer import SOURCE_RELIABILITY
+from forgemind.knowledge.domain.value_objects import DocumentType
 from forgemind.shared.errors import IngestionError, UnsupportedFormatError
 from forgemind.shared.logging import get_logger
 from forgemind.shared.types import DocumentId
@@ -65,8 +78,31 @@ class ChunkResponse(BaseModel):
     char_end: int
 
 
+class KnowledgeGraphStats(BaseModel):
+    """Statistics about what the upload contributed to the knowledge graph."""
+
+    entities_created: int
+    entities_updated: int
+    relationships_created: int
+    relationships_strengthened: int
+    total_entities: int
+    total_relationships: int
+
+
+class KnowledgeEventResponse(BaseModel):
+    """A single knowledge evolution event for the timeline."""
+
+    event_type: str
+    entity_name: str
+    old_confidence: float | None
+    new_confidence: float
+    evidence_count: int
+    details: str
+    timestamp: str
+
+
 class IngestionResponse(BaseModel):
-    """API response after successful ingestion — includes analysis."""
+    """API response after successful ingestion with analysis and graph stats."""
 
     message: str
     document_id: str
@@ -74,6 +110,8 @@ class IngestionResponse(BaseModel):
     page_count: int
     chunk_count: int
     analysis: dict[str, Any]
+    knowledge_graph: KnowledgeGraphStats
+    knowledge_events: list[KnowledgeEventResponse]
 
 
 class TextIngestionRequest(BaseModel):
@@ -88,6 +126,8 @@ class StatsResponse(BaseModel):
 
     total_documents: int
     total_chunks: int
+    total_entities: int
+    total_relationships: int
 
 
 class AnalysisResponse(BaseModel):
@@ -114,6 +154,32 @@ def _get_state(request: Request) -> AppState:
     return request.app.state.forgemind  # type: ignore[no-any-return]
 
 
+def _detect_document_type(title: str, text: str) -> DocumentType:
+    """Auto-detect document type from title and content keywords.
+
+    This ensures the correct source reliability is applied, which
+    directly affects confidence scores in the knowledge graph.
+
+    Args:
+        title: The document title (often the filename).
+        text: The full document text.
+
+    Returns:
+        The detected DocumentType.
+    """
+    combined = (title + " " + text[:2000]).lower()
+
+    if any(
+        kw in combined for kw in ["manual", "maintenance manual", "operating manual", "procedure"]
+    ):
+        return DocumentType.MANUAL
+    if any(kw in combined for kw in ["incident", "failure report", "root cause", "accident"]):
+        return DocumentType.INCIDENT_REPORT
+    if any(kw in combined for kw in ["work order", "service request", "repair order"]):
+        return DocumentType.WORK_ORDER
+    return DocumentType.UNKNOWN
+
+
 def _build_analysis_dict(text: str) -> dict[str, Any]:
     """Run the analyzer on text and return a serializable dict.
 
@@ -134,6 +200,89 @@ def _build_analysis_dict(text: str) -> dict[str, Any]:
     }
 
 
+def _build_knowledge_graph(
+    state: AppState,
+    full_text: str,
+    document_id: str,
+    document_title: str,
+    document_type: DocumentType,
+    chunk_texts: list[str],
+) -> dict[str, Any]:
+    """Run the full knowledge pipeline and return graph stats + events.
+
+    This is the core of ForgeMind's organizational memory. It:
+      1. Analyzes the text for raw entity strings.
+      2. Normalizes strings into typed KnowledgeEntity objects.
+      3. Extracts relationships from entity co-occurrence in chunks.
+      4. Merges everything into the graph via the Evolution Engine.
+      5. Returns statistics and the audit trail.
+
+    Args:
+        state: Application state with all adapters.
+        full_text: The complete document text.
+        document_id: The document's unique ID.
+        document_title: The document's title.
+        document_type: Classification of the source document.
+        chunk_texts: List of individual chunk texts.
+
+    Returns:
+        Dictionary with 'knowledge_graph' stats and 'knowledge_events' list.
+    """
+    # Step 1: Analyze text for raw entity strings
+    insights = _analyzer.analyze_text(full_text)
+
+    # Step 2: Normalize raw strings → typed KnowledgeEntity objects
+    entities = state.entity_normalizer.normalize(
+        insights=insights,
+        document_id=document_id,
+        document_title=document_title,
+        document_type=document_type,
+    )
+
+    # Step 3: Extract relationships from entities + chunks
+    relationships = state.relationship_extractor.extract(
+        entities=entities,
+        chunk_texts=chunk_texts,
+        document_id=document_id,
+    )
+
+    # Step 4: Merge into the knowledge graph via Evolution Engine
+    reliability = SOURCE_RELIABILITY.get(document_type, 0.7)
+    merge_result = state.knowledge_evolution.merge(
+        new_entities=entities,
+        new_relationships=relationships,
+        graph=state.graph_repository,
+        source_document_id=document_id,
+        source_document_title=document_title,
+        source_reliability=reliability,
+    )
+
+    # Step 5: Build response
+    graph_stats = {
+        "entities_created": merge_result.entities_created,
+        "entities_updated": merge_result.entities_updated,
+        "relationships_created": merge_result.relationships_created,
+        "relationships_strengthened": merge_result.relationships_strengthened,
+        "total_entities": state.graph_repository.get_entity_count(),
+        "total_relationships": state.graph_repository.get_relationship_count(),
+    }
+
+    events = [
+        {
+            "event_type": event.event_type.value,
+            "entity_name": event.entity_name,
+            "old_confidence": event.old_confidence,
+            "new_confidence": round(event.new_confidence, 4),
+            "evidence_count": event.evidence_count,
+            "details": event.details,
+            "timestamp": event.timestamp.isoformat(),
+        }
+        for event in merge_result.events
+    ]
+
+    return {"knowledge_graph": graph_stats, "knowledge_events": events}
+
+
 # ── Routes ───────────────────────────────────────────────────────
 
 
@@ -143,14 +292,14 @@ def _build_analysis_dict(text: str) -> dict[str, Any]:
     status_code=201,
     summary="Upload and ingest a PDF document",
     description=(
-        "Upload a PDF file to run it through the ingestion pipeline. "
-        "The file is parsed, chunked at sentence boundaries, stored, "
-        "and automatically analyzed for equipment, parameters, symptoms, "
-        "and corrective actions."
+        "Upload a PDF file to run it through the full intelligence pipeline. "
+        "The file is parsed, chunked, analyzed, and automatically merged "
+        "into the organizational knowledge graph. Every upload evolves "
+        "ForgeMind's understanding of your assets, failures, and procedures."
     ),
 )
 async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
-    """Upload a PDF file and run it through the full pipeline with analysis."""
+    """Upload a PDF file and run it through the full intelligence pipeline."""
     state = _get_state(request)
 
     if not file.filename:
@@ -170,12 +319,24 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
         with open(temp_path, "wb") as temp_file:
             shutil.copyfileobj(file.file, temp_file)
 
-        # Run the ingestion pipeline
+        # Phase 1: Ingest (parse + chunk + store)
         result = state.ingestion_service.ingest_document(str(temp_path))
 
-        # Run analysis on the full document text
-        full_text = " ".join(chunk.content for chunk in result.chunks)
+        # Phase 2: Analyze (pattern extraction)
+        chunk_texts = [chunk.content for chunk in result.chunks]
+        full_text = " ".join(chunk_texts)
         analysis = _build_analysis_dict(full_text)
+
+        # Phase 3: Build Knowledge Graph (normalize + extract + evolve)
+        detected_type = _detect_document_type(result.document.title, full_text)
+        knowledge = _build_knowledge_graph(
+            state=state,
+            full_text=full_text,
+            document_id=str(result.document.id),
+            document_title=result.document.title,
+            document_type=detected_type,
+            chunk_texts=chunk_texts,
+        )
 
         return {
             "message": f"Successfully ingested '{result.document.title}'",
@@ -184,6 +345,7 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
             "page_count": result.document.page_count,
             "chunk_count": len(result.chunks),
             "analysis": analysis,
+            **knowledge,
         }
 
     except UnsupportedFormatError as error:
@@ -212,7 +374,7 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
     description="Paste raw text to ingest it directly without uploading a file.",
 )
 async def ingest_text(request: Request, body: TextIngestionRequest) -> dict[str, Any]:
-    """Ingest raw text content with automatic analysis."""
+    """Ingest raw text content with automatic analysis and knowledge graph update."""
     state = _get_state(request)
 
     try:
@@ -221,8 +383,18 @@ async def ingest_text(request: Request, body: TextIngestionRequest) -> dict[str,
             title=body.title,
         )
 
-        full_text = " ".join(chunk.content for chunk in result.chunks)
+        chunk_texts = [chunk.content for chunk in result.chunks]
+        full_text = " ".join(chunk_texts)
         analysis = _build_analysis_dict(full_text)
+
+        knowledge = _build_knowledge_graph(
+            state=state,
+            full_text=full_text,
+            document_id=str(result.document.id),
+            document_title=result.document.title,
+            document_type=_detect_document_type(result.document.title, full_text),
+            chunk_texts=chunk_texts,
+        )
 
         return {
             "message": f"Successfully ingested '{result.document.title}'",
@@ -231,6 +403,7 @@ async def ingest_text(request: Request, body: TextIngestionRequest) -> dict[str,
             "page_count": result.document.page_count,
             "chunk_count": len(result.chunks),
             "analysis": analysis,
+            **knowledge,
         }
 
     except IngestionError as error:
@@ -269,11 +442,13 @@ async def list_documents(request: Request) -> list[dict[str, Any]]:
     summary="Get system statistics",
 )
 async def get_stats(request: Request) -> dict[str, int]:
-    """Get aggregate statistics about the ingested documents."""
+    """Get aggregate statistics about the system."""
     state = _get_state(request)
     return {
         "total_documents": state.document_repository.count(),
         "total_chunks": state.chunk_repository.count(),
+        "total_entities": state.graph_repository.get_entity_count(),
+        "total_relationships": state.graph_repository.get_relationship_count(),
     }
 
 

@@ -89,6 +89,24 @@ class RelationType(enum.Enum):
     RELATED_TO = "related_to"
     """General association between entities when specific type is unknown."""
 
+    OPERATED_BY = "operated_by"
+    """Source asset is operated/driven by the target (e.g., Pump operated by Motor)."""
+
+    HAS_PARAMETER = "has_parameter"
+    """Source entity has the target operating parameter (e.g., Pump has 3000 RPM)."""
+
+    INDICATES = "indicates"
+    """Source symptom indicates the target failure mode."""
+
+    MANUFACTURED_BY = "manufactured_by"
+    """Source entity is manufactured by the target (e.g., Pump by AquaFlow)."""
+
+    REQUIRES_PART = "requires_part"
+    """Source action/procedure requires the target part."""
+
+    MONITORS = "monitors"
+    """Source instrument monitors the target parameter/condition."""
+
 
 # ── Inverse Relationship Mapping ─────────────────────────────────
 
@@ -103,6 +121,12 @@ INVERSE_RELATIONS: dict[RelationType, RelationType] = {
     RelationType.HAS_SYMPTOM: RelationType.SYMPTOMS_OF,
     RelationType.LOCATED_AT: RelationType.LOCATED_AT,
     RelationType.RELATED_TO: RelationType.RELATED_TO,
+    RelationType.OPERATED_BY: RelationType.OPERATED_BY,
+    RelationType.HAS_PARAMETER: RelationType.HAS_PARAMETER,
+    RelationType.INDICATES: RelationType.INDICATES,
+    RelationType.MANUFACTURED_BY: RelationType.MANUFACTURED_BY,
+    RelationType.REQUIRES_PART: RelationType.REQUIRES_PART,
+    RelationType.MONITORS: RelationType.MONITORS,
 }
 
 

@@ -1,1 +1,1 @@
-"""Reasoning bounded context — LLM-powered reasoning with graph context."""
+"""Reasoning package -- graph-based explainable intelligence."""

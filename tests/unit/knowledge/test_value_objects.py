@@ -57,6 +57,12 @@ class TestRelationType:
             "HAS_SYMPTOM",
             "LOCATED_AT",
             "RELATED_TO",
+            "OPERATED_BY",
+            "HAS_PARAMETER",
+            "INDICATES",
+            "MANUFACTURED_BY",
+            "REQUIRES_PART",
+            "MONITORS",
         }
         actual = {r.name for r in RelationType}
         assert actual == expected
