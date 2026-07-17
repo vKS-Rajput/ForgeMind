@@ -142,6 +142,9 @@ class DocumentType(enum.Enum):
     INCIDENT_REPORT = "incident_report"
     """Record of a failure, incident, or abnormal event."""
 
+    INSPECTION_REPORT = "inspection_report"
+    """Post-incident or routine inspection findings."""
+
     WORK_ORDER = "work_order"
     """Maintenance work order or service request."""
 

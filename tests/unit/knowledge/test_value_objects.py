@@ -82,7 +82,7 @@ class TestDocumentType:
     """DocumentType enum coverage."""
 
     def test_all_document_types_exist(self):
-        expected = {"MANUAL", "INCIDENT_REPORT", "WORK_ORDER", "UNKNOWN"}
+        expected = {"MANUAL", "INCIDENT_REPORT", "INSPECTION_REPORT", "WORK_ORDER", "UNKNOWN"}
         actual = {d.name for d in DocumentType}
         assert actual == expected
 

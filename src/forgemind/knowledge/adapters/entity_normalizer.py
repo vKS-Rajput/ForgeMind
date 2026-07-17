@@ -48,6 +48,7 @@ logger = get_logger(__name__)
 
 SOURCE_RELIABILITY: dict[DocumentType, float] = {
     DocumentType.MANUAL: 1.0,
+    DocumentType.INSPECTION_REPORT: 0.9,
     DocumentType.INCIDENT_REPORT: 0.85,
     DocumentType.WORK_ORDER: 0.8,
     DocumentType.UNKNOWN: 0.7,

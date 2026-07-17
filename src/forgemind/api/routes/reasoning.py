@@ -143,3 +143,37 @@ async def reason(request: Request, body: ReasoningRequest) -> dict[str, Any]:
         "graph_traversals": result.graph_traversals,
         "evidence_count": result.evidence_count,
     }
+
+
+@router.post(
+    "/decide",
+    summary="Get a decision-oriented intelligence report",
+    description=(
+        "Submit a question and get a decision-oriented response with: "
+        "problem diagnosis, severity classification, prioritized actions, "
+        "business impact estimation, and explainable confidence breakdown. "
+        "This endpoint transforms graph traversals into actionable intelligence."
+    ),
+)
+async def decide(request: Request, body: ReasoningRequest) -> dict[str, Any]:
+    """Produce decision-oriented intelligence from the knowledge graph."""
+    state = _get_state(request)
+
+    result = _reasoning.decide(
+        query=body.query,
+        graph=state.graph_repository,
+        evolution_engine=state.knowledge_evolution,
+    )
+
+    return {
+        "query": result.query,
+        "entity_name": result.entity_name,
+        "entity_type": result.entity_type,
+        "timestamp": result.timestamp,
+        "decision": result.decision,
+        "diagnosis": result.diagnosis,
+        "recommended_actions": result.recommended_actions,
+        "business_impact": result.business_impact,
+        "confidence_breakdown": result.confidence_breakdown,
+        "reasoning_trace": result.reasoning_trace,
+    }

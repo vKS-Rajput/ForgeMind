@@ -114,6 +114,7 @@ class IngestionResponse(BaseModel):
     analysis: dict[str, Any]
     knowledge_graph: KnowledgeGraphStats
     knowledge_events: list[KnowledgeEventResponse]
+    knowledge_delta: dict[str, Any]
 
 
 class TextIngestionRequest(BaseModel):
@@ -177,6 +178,11 @@ def _detect_document_type(title: str, text: str) -> DocumentType:
         return DocumentType.MANUAL
     if any(kw in combined for kw in ["incident", "failure report", "root cause", "accident"]):
         return DocumentType.INCIDENT_REPORT
+    if any(
+        kw in combined
+        for kw in ["inspection report", "inspection findings", "inspector", "inspection date"]
+    ):
+        return DocumentType.INSPECTION_REPORT
     if any(kw in combined for kw in ["work order", "service request", "repair order"]):
         return DocumentType.WORK_ORDER
     return DocumentType.UNKNOWN
@@ -282,7 +288,11 @@ def _build_knowledge_graph(
         for event in merge_result.events
     ]
 
-    return {"knowledge_graph": graph_stats, "knowledge_events": events}
+    return {
+        "knowledge_graph": graph_stats,
+        "knowledge_events": events,
+        "knowledge_delta": merge_result.knowledge_delta(),
+    }
 
 
 # ── Routes ───────────────────────────────────────────────────────

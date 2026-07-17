@@ -91,3 +91,34 @@ async def search_graph(request: Request, q: str) -> list[dict[str, Any]]:
         }
         for entity in matches
     ]
+
+
+@router.get(
+    "/graph/timeline",
+    summary="Knowledge evolution timeline",
+    description=(
+        "Returns the full chronological timeline of knowledge evolution events. "
+        "Each event records what changed, when, and which document triggered it."
+    ),
+)
+async def knowledge_timeline(request: Request) -> dict[str, Any]:
+    """Get the full organizational learning timeline."""
+    state = _get_state(request)
+    events = state.knowledge_evolution.get_timeline()
+
+    return {
+        "total_events": len(events),
+        "timeline": [
+            {
+                "event_type": event.event_type.value,
+                "entity_name": event.entity_name,
+                "old_confidence": event.old_confidence,
+                "new_confidence": round(event.new_confidence, 4),
+                "evidence_count": event.evidence_count,
+                "source_document": event.source_document_title,
+                "details": event.details,
+                "timestamp": event.timestamp.isoformat(),
+            }
+            for event in events
+        ],
+    }
