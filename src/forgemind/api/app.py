@@ -20,6 +20,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from forgemind.api.routes.dashboard import router as dashboard_router
 from forgemind.api.routes.documents import router as documents_router
 from forgemind.api.routes.graph import router as graph_router
 from forgemind.api.routes.reasoning import router as reasoning_router
@@ -43,7 +44,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
       - Logs a clean shutdown message.
     """
     # ── Startup ──────────────────────────────────────────────────
-    logger.info("application_starting", version="0.1.0")
+    logger.info("application_starting", version="0.4.0")
 
     # Create the application state with all wired-up adapters.
     # This is the composition root: adapters are created here and
@@ -76,11 +77,12 @@ def create_app() -> FastAPI:
             "knowledge graphs, evolving confidence, "
             "and explainable reasoning backed by evidence."
         ),
-        version="0.3.0",
+        version="0.4.0",
         lifespan=lifespan,
     )
 
     # ── Register routes ──────────────────────────────────────────
+    app.include_router(dashboard_router)  # Serves at / (the product experience)
     app.include_router(documents_router, prefix="/api/v1")
     app.include_router(graph_router, prefix="/api/v1")
     app.include_router(reasoning_router, prefix="/api/v1")
