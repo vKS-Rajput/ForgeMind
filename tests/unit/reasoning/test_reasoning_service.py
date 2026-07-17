@@ -222,6 +222,7 @@ class TestReason:
             for obs in result.observations
             if "component" in obs.lower() or "Bearing" in obs or "Impeller" in obs
         }
+        assert len(component_names) > 0
         assert len(result.observations) > 0
 
     def test_discovers_causes(
