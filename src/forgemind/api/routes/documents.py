@@ -33,6 +33,8 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile
+
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel
 
 from forgemind.api.state import AppState

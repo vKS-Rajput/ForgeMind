@@ -280,7 +280,7 @@ class ReasoningService:
         """Discover components of the focal entity."""
         neighbors = graph.get_neighbors(
             str(focal.id),
-            relation_filter=RelationType.HAS_COMPONENT,
+            relation_types=[RelationType.HAS_COMPONENT],
         )
         if not neighbors:
             return step_num, []
@@ -326,7 +326,7 @@ class ReasoningService:
         """Discover symptoms associated with the focal entity."""
         neighbors = graph.get_neighbors(
             str(focal.id),
-            relation_filter=RelationType.HAS_SYMPTOM,
+            relation_types=[RelationType.HAS_SYMPTOM],
         )
         if not neighbors:
             return step_num, []
@@ -373,7 +373,7 @@ class ReasoningService:
         # First find symptoms
         symptoms = graph.get_neighbors(
             str(focal.id),
-            relation_filter=RelationType.HAS_SYMPTOM,
+            relation_types=[RelationType.HAS_SYMPTOM],
         )
 
         all_evidence: list[EvidenceLink] = []
@@ -382,7 +382,7 @@ class ReasoningService:
         for symptom in symptoms:
             causes = graph.get_neighbors(
                 str(symptom.id),
-                relation_filter=RelationType.CAUSED_BY,
+                relation_types=[RelationType.CAUSED_BY],
             )
             for cause in causes:
                 if cause.name in seen_causes:
@@ -435,7 +435,7 @@ class ReasoningService:
         # Look for actions that RESOLVE symptoms
         symptoms = graph.get_neighbors(
             str(focal.id),
-            relation_filter=RelationType.HAS_SYMPTOM,
+            relation_types=[RelationType.HAS_SYMPTOM],
         )
 
         all_evidence: list[EvidenceLink] = []
@@ -446,7 +446,7 @@ class ReasoningService:
             for action in graph.query_by_type(entity_type):
                 targets = graph.get_neighbors(
                     str(action.id),
-                    relation_filter=RelationType.RESOLVES,
+                    relation_types=[RelationType.RESOLVES],
                 )
                 for target in targets:
                     # Check if this action resolves any of the symptoms
@@ -497,7 +497,7 @@ class ReasoningService:
         """Discover operating parameters linked to the focal entity."""
         neighbors = graph.get_neighbors(
             str(focal.id),
-            relation_filter=RelationType.HAS_PARAMETER,
+            relation_types=[RelationType.HAS_PARAMETER],
         )
         if not neighbors:
             return step_num, []

@@ -23,6 +23,7 @@ from fastapi import FastAPI
 from forgemind.api.routes.documents import router as documents_router
 from forgemind.api.routes.graph import router as graph_router
 from forgemind.api.routes.reasoning import router as reasoning_router
+from forgemind.api.routes.visualization import router as visualization_router
 from forgemind.api.state import create_app_state
 from forgemind.shared.logging import get_logger
 
@@ -75,7 +76,7 @@ def create_app() -> FastAPI:
             "knowledge graphs, evolving confidence, "
             "and explainable reasoning backed by evidence."
         ),
-        version="0.2.0",
+        version="0.3.0",
         lifespan=lifespan,
     )
 
@@ -83,5 +84,6 @@ def create_app() -> FastAPI:
     app.include_router(documents_router, prefix="/api/v1")
     app.include_router(graph_router, prefix="/api/v1")
     app.include_router(reasoning_router, prefix="/api/v1")
+    app.include_router(visualization_router)  # Serves at /graph (no prefix)
 
     return app
