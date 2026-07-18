@@ -1,0 +1,6 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "uv run python -m uvicorn forgemind.api.app:create_app --factory --host 0.0.0.0 --port $PORT"
+restartPolicyType = "on-failure"
