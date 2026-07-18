@@ -1,4 +1,4 @@
-"""Graph visualization route -- premium interactive knowledge graph.
+"""Graph visualization route -- classic interactive knowledge graph.
 
 Routes:
   GET /graph         -- Serves the interactive D3.js visualization page.
@@ -24,7 +24,7 @@ async def graph_visualization(request: Request) -> HTMLResponse:
     return HTMLResponse(content=_GRAPH_HTML, status_code=200)
 
 
-# ── Inline HTML (no template engine needed) ──────────────────────
+# ── Inline HTML ──────────────────────────────────────────────────
 
 _GRAPH_HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -32,226 +32,158 @@ _GRAPH_HTML = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ForgeMind — Knowledge Graph</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin:0; padding:0; box-sizing:border-box; }
         body {
-            font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-            background: #080810;
-            color: #e0e0e6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #e8e8e8; color: #1a1a1a; font-size: 14px;
             overflow: hidden;
         }
 
         /* ── Top Bar ──────────────────────────────── */
         #topbar {
-            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-            background: rgba(8, 8, 16, 0.92);
-            backdrop-filter: blur(16px);
-            border-bottom: 1px solid rgba(99, 102, 241, 0.15);
-            padding: 0 24px;
-            display: flex; align-items: center; height: 52px; gap: 20px;
+            background: #003366; color: white; padding: 0 16px;
+            display: flex; align-items: center; height: 42px; gap: 16px;
+            border-bottom: 3px solid #001a33;
         }
-        #topbar h1 {
-            font-size: 17px; font-weight: 800; letter-spacing: -0.3px;
-            background: linear-gradient(135deg, #818cf8, #a78bfa, #c084fc);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            white-space: nowrap;
-        }
-        .tab-bar {
-            display: flex; gap: 2px; margin-left: 12px;
-        }
+        #topbar h1 { font-size: 16px; font-weight: bold; white-space: nowrap; }
+        .tab-bar { display: flex; gap: 2px; margin-left: 10px; }
         .tab {
-            padding: 6px 14px; border-radius: 6px; font-size: 12px;
-            font-weight: 600; cursor: pointer; color: #6b6b80;
-            transition: all 0.2s;
+            padding: 5px 12px; font-size: 12px; font-weight: bold;
+            cursor: pointer; color: #99ccff; background: transparent;
+            border: 1px solid transparent; border-radius: 2px;
         }
-        .tab:hover { color: #a78bfa; background: rgba(99, 102, 241, 0.08); }
-        .tab.active {
-            color: #e0e0f0; background: rgba(99, 102, 241, 0.15);
-            border: 1px solid rgba(99, 102, 241, 0.2);
-        }
+        .tab:hover { background: rgba(255,255,255,0.1); }
+        .tab.active { color: white; background: #004488; border-color: #006699; }
         .stats-bar {
-            display: flex; gap: 16px; margin-left: auto;
-            font-size: 12px; color: #6b6b80;
+            display: flex; gap: 14px; margin-left: auto;
+            font-size: 11px; color: #99ccff;
         }
-        .stats-bar .val { color: #a78bfa; font-weight: 700; }
+        .stats-bar .val { color: white; font-weight: bold; }
+        .nav-links { margin-left: 16px; }
+        .nav-links a { color: #99ccff; font-size: 11px; margin-left: 12px; text-decoration: none; }
+        .nav-links a:hover { text-decoration: underline; color: white; }
 
-        /* ── Left Sidebar (Filters) ──────────────── */
+        /* ── Left Sidebar ─────────────────────────── */
         #sidebar {
-            position: fixed; left: 0; top: 52px; bottom: 0; width: 220px;
-            background: rgba(10, 10, 18, 0.95);
-            border-right: 1px solid rgba(99, 102, 241, 0.1);
-            padding: 16px; overflow-y: auto; z-index: 90;
-            backdrop-filter: blur(12px);
-        }
-        .sidebar-section {
-            margin-bottom: 20px;
+            position: fixed; left: 0; top: 42px; bottom: 0; width: 200px;
+            background: #f0f0f0; border-right: 2px solid #bbb;
+            padding: 10px; overflow-y: auto;
         }
         .sidebar-title {
-            font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px;
-            color: #5a5a6e; font-weight: 700; margin-bottom: 10px;
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+            color: #666; font-weight: bold; margin-bottom: 6px; margin-top: 8px;
+            border-bottom: 1px solid #ccc; padding-bottom: 3px;
         }
         .filter-item {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 12px; color: #b0b0c0; margin-bottom: 7px;
-            cursor: pointer; transition: color 0.15s;
+            display: flex; align-items: center; gap: 6px;
+            font-size: 12px; color: #333; margin-bottom: 4px; cursor: pointer;
         }
-        .filter-item:hover { color: #e0e0f0; }
-        .filter-item input[type="checkbox"] {
-            accent-color: #6366f1; width: 14px; height: 14px;
-        }
-        .filter-dot {
-            width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-        }
-        .filter-count {
-            margin-left: auto; color: #5a5a6e; font-size: 11px;
-        }
-
-        /* ── Search ───────────────────────────────── */
-        #search-box {
-            padding: 0 0 12px 0;
-        }
+        .filter-item input[type="checkbox"] { width: 14px; height: 14px; }
+        .filter-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+        .filter-count { margin-left: auto; color: #888; font-size: 11px; }
+        #search-box { padding: 0 0 8px 0; }
         #search-box input {
-            width: 100%; background: rgba(20, 20, 35, 0.9);
-            border: 1px solid rgba(99, 102, 241, 0.2);
-            border-radius: 8px; padding: 8px 12px;
-            color: #e0e0f0; font-size: 12px; outline: none;
+            width: 100%; border: 2px solid #99aabb; border-radius: 3px;
+            padding: 6px 8px; font-size: 12px; background: white;
         }
-        #search-box input:focus {
-            border-color: #6366f1;
-            box-shadow: 0 0 12px rgba(99, 102, 241, 0.15);
+        #search-box input:focus { border-color: #003366; outline: none; }
+        #reason-btn {
+            width: 100%; padding: 7px; border: 1px solid #003366;
+            background: #e8eef5; color: #003366; font-size: 11px;
+            font-weight: bold; cursor: pointer; border-radius: 3px;
+            margin-top: 8px;
         }
-        #search-box input::placeholder { color: #4a4a5e; }
+        #reason-btn:hover { background: #d0dced; }
 
-        /* ── Right Inspector Panel ────────────────── */
+        /* ── Right Inspector ──────────────────────── */
         #inspector {
-            position: fixed; right: 0; top: 52px; bottom: 0; width: 320px;
-            background: rgba(10, 10, 18, 0.97);
-            border-left: 1px solid rgba(99, 102, 241, 0.1);
-            padding: 20px; overflow-y: auto; z-index: 90;
-            transform: translateX(100%); transition: transform 0.3s ease;
-            backdrop-filter: blur(16px);
+            position: fixed; right: 0; top: 42px; bottom: 0; width: 280px;
+            background: white; border-left: 2px solid #bbb;
+            padding: 12px; overflow-y: auto;
+            transform: translateX(100%); transition: transform 0.2s ease;
         }
         #inspector.open { transform: translateX(0); }
         #inspector-close {
-            position: absolute; top: 12px; right: 14px;
-            background: none; border: none; color: #6b6b80;
-            font-size: 18px; cursor: pointer;
+            position: absolute; top: 8px; right: 10px;
+            background: none; border: none; color: #999; font-size: 18px; cursor: pointer;
         }
-        #inspector-close:hover { color: #e0e0f0; }
-        .inspector-name {
-            font-size: 18px; font-weight: 700; color: #e0e0f0;
-            margin-bottom: 4px;
-        }
+        #inspector-close:hover { color: #333; }
+        .inspector-name { font-size: 16px; font-weight: bold; color: #003366; margin-bottom: 4px; }
         .inspector-type {
-            font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px;
-            font-weight: 600; margin-bottom: 16px; padding: 3px 10px;
-            border-radius: 4px; display: inline-block;
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+            font-weight: bold; margin-bottom: 12px; padding: 2px 8px;
+            border-radius: 2px; display: inline-block; border: 1px solid;
         }
-        .inspector-section {
-            margin-bottom: 16px;
-        }
+        .inspector-section { margin-bottom: 12px; }
         .inspector-section-title {
-            font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
-            color: #5a5a6e; font-weight: 700; margin-bottom: 8px;
-            border-bottom: 1px solid rgba(99, 102, 241, 0.08);
-            padding-bottom: 4px;
+            font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px;
+            color: #888; font-weight: bold; margin-bottom: 5px;
+            border-bottom: 1px solid #eee; padding-bottom: 3px;
         }
         .inspector-stat {
             display: flex; justify-content: space-between;
-            font-size: 13px; margin-bottom: 5px;
+            font-size: 12px; margin-bottom: 3px;
         }
-        .inspector-stat .label { color: #8b8b9e; }
-        .inspector-stat .value { color: #e0e0f0; font-weight: 600; }
+        .inspector-stat .label { color: #666; }
+        .inspector-stat .value { color: #1a1a1a; font-weight: bold; }
         .inspector-connection {
-            font-size: 12px; color: #b0b0c0; margin-bottom: 4px;
-            padding: 4px 8px; border-radius: 4px;
-            background: rgba(99, 102, 241, 0.05);
+            font-size: 11px; color: #333; margin-bottom: 3px;
+            padding: 3px 6px; background: #f8f9fb; border-left: 3px solid #003366;
         }
         .inspector-connection .rel {
-            color: #7c7cff; font-size: 10px; text-transform: uppercase;
+            color: #0055aa; font-size: 10px; text-transform: uppercase; font-weight: bold;
         }
 
         /* ── Graph Canvas ─────────────────────────── */
-        svg { position: fixed; left: 220px; top: 52px; }
-        .link { stroke-opacity: 0.4; stroke-width: 1.2; }
-        .link.highlighted {
-            stroke-opacity: 1; stroke-width: 3;
-            filter: drop-shadow(0 0 6px currentColor);
-        }
-        .link-label {
-            font-size: 8px; fill: #4a4a5e; pointer-events: none;
-        }
-        .node circle {
-            stroke-width: 2; cursor: pointer;
-            transition: r 0.3s ease, filter 0.2s ease;
-        }
-        .node circle:hover { filter: brightness(1.4) drop-shadow(0 0 8px currentColor); }
-        .node.dimmed circle { opacity: 0.12; }
-        .node.dimmed text { opacity: 0.08; }
-        .node-label {
-            fill: #c0c0d0; pointer-events: none; text-anchor: middle;
-        }
-        .node.dimmed .node-label { fill: #3a3a4a; }
+        svg { position: fixed; left: 200px; top: 42px; background: #fafafa; }
+        .link { stroke-opacity: 0.5; stroke-width: 1.5; }
+        .link.highlighted { stroke-opacity: 1; stroke-width: 3; }
+        .node circle { stroke-width: 2; cursor: pointer; }
+        .node circle:hover { filter: brightness(1.2); }
+        .node.dimmed circle { opacity: 0.1; }
+        .node.dimmed text { opacity: 0.05; }
+        .node-label { fill: #333; pointer-events: none; text-anchor: middle; font-weight: 500; }
+        .node.dimmed .node-label { fill: #ccc; }
 
         /* ── Reasoning animation ──────────────────── */
-        .reasoning-pulse {
-            animation: pulse-glow 0.6s ease-in-out;
-        }
+        .reasoning-pulse { animation: pulse-glow 0.6s ease-in-out; }
         @keyframes pulse-glow {
             0% { filter: brightness(1); }
-            50% { filter: brightness(2) drop-shadow(0 0 16px currentColor); }
-            100% { filter: brightness(1.3) drop-shadow(0 0 8px currentColor); }
+            50% { filter: brightness(1.5) drop-shadow(0 0 8px currentColor); }
+            100% { filter: brightness(1.2); }
         }
 
-        /* ── Landing narrative ────────────────────── */
+        /* ── Landing Narrative ────────────────────── */
         #narrative {
-            position: fixed; top: 52px; left: 220px; right: 0; bottom: 0;
+            position: fixed; top: 42px; left: 200px; right: 0; bottom: 0;
             display: flex; align-items: center; justify-content: center;
-            z-index: 80; background: rgba(8, 8, 16, 0.98);
-            transition: opacity 0.5s ease;
+            z-index: 80; background: rgba(240,240,240,0.97);
+            transition: opacity 0.3s ease;
         }
         #narrative.hidden { opacity: 0; pointer-events: none; }
-        .narrative-box {
-            text-align: center; max-width: 640px; padding: 40px;
-        }
-        .narrative-box h2 {
-            font-size: 28px; font-weight: 800; line-height: 1.3;
-            background: linear-gradient(135deg, #818cf8, #a78bfa, #c084fc);
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            margin-bottom: 20px;
-        }
-        .narrative-box p {
-            font-size: 15px; color: #8b8b9e; line-height: 1.7;
-            margin-bottom: 28px;
-        }
-        .demo-flow {
-            display: flex; align-items: center; justify-content: center;
-            gap: 8px; flex-wrap: wrap; margin-bottom: 32px;
-        }
+        .narrative-box { text-align: center; max-width: 550px; padding: 30px; }
+        .narrative-box h2 { font-size: 22px; font-weight: bold; color: #003366; margin-bottom: 16px; }
+        .narrative-box p { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 20px; }
+        .demo-flow { display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; }
         .demo-step {
-            padding: 8px 16px; border-radius: 8px; font-size: 13px;
-            font-weight: 600; background: rgba(99, 102, 241, 0.1);
-            border: 1px solid rgba(99, 102, 241, 0.15); color: #a78bfa;
+            padding: 6px 14px; border: 1px solid #99aabb; border-radius: 3px;
+            font-size: 12px; font-weight: bold; background: white; color: #003366;
         }
-        .demo-arrow { color: #4a4a5e; font-size: 18px; }
+        .demo-arrow { color: #888; font-size: 16px; }
         .narrative-btn {
-            padding: 12px 32px; border-radius: 10px; border: none;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            color: white; font-size: 14px; font-weight: 700;
-            cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;
+            padding: 10px 28px; border: 1px solid #001a33; border-radius: 3px;
+            background: #003366; color: white; font-size: 13px; font-weight: bold;
+            cursor: pointer;
         }
-        .narrative-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
-        }
+        .narrative-btn:hover { background: #004488; }
     </style>
 </head>
 <body>
     <!-- Top Bar -->
     <div id="topbar">
-        <h1>ForgeMind</h1>
+        <h1>⚙ ForgeMind — Knowledge Graph</h1>
         <div class="tab-bar">
             <div class="tab active" data-view="all">Graph</div>
             <div class="tab" data-view="asset">Assets</div>
@@ -262,7 +194,10 @@ _GRAPH_HTML = """<!DOCTYPE html>
             <div>Entities <span class="val" id="stat-nodes">0</span></div>
             <div>Edges <span class="val" id="stat-edges">0</span></div>
             <div>Density <span class="val" id="stat-density">0</span></div>
-            <div>Documents <span class="val" id="stat-docs">0</span></div>
+        </div>
+        <div class="nav-links">
+            <a href="/">Dashboard</a>
+            <a href="/docs">API Docs</a>
         </div>
     </div>
 
@@ -271,15 +206,11 @@ _GRAPH_HTML = """<!DOCTYPE html>
         <div id="search-box">
             <input type="text" id="search" placeholder="Search entities..." />
         </div>
-        <div class="sidebar-section">
-            <div class="sidebar-title">Entity Types</div>
-            <div id="filter-list"></div>
-        </div>
-        <div class="sidebar-section" id="reason-section" style="display:none">
+        <div class="sidebar-title">Entity Types</div>
+        <div id="filter-list"></div>
+        <div id="reason-section" style="display:none">
             <div class="sidebar-title">Reasoning</div>
-            <button id="reason-btn" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(99,102,241,0.2);background:rgba(99,102,241,0.1);color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;">
-                Animate Reasoning Path
-            </button>
+            <button id="reason-btn">▶ Animate Reasoning Path</button>
         </div>
     </div>
 
@@ -294,8 +225,8 @@ _GRAPH_HTML = """<!DOCTYPE html>
     <!-- Landing Narrative -->
     <div id="narrative">
         <div class="narrative-box">
-            <h2>ForgeMind transforms maintenance documents into living organizational memory</h2>
-            <p>Upload manuals, incident reports, and inspection records. Watch knowledge evolve with each document. Ask questions and get evidence-backed, explainable decisions.</p>
+            <h2>ForgeMind Knowledge Graph</h2>
+            <p>Upload maintenance documents and watch ForgeMind build a live knowledge graph. Each document adds entities, relationships, and evolving confidence.</p>
             <div class="demo-flow">
                 <div class="demo-step">📄 Manual</div>
                 <div class="demo-arrow">→</div>
@@ -303,11 +234,9 @@ _GRAPH_HTML = """<!DOCTYPE html>
                 <div class="demo-arrow">→</div>
                 <div class="demo-step">🔍 Inspection</div>
                 <div class="demo-arrow">→</div>
-                <div class="demo-step">🧠 Memory Updated</div>
-                <div class="demo-arrow">→</div>
-                <div class="demo-step">📊 Decision</div>
+                <div class="demo-step">🧠 Memory</div>
             </div>
-            <button class="narrative-btn" onclick="dismissNarrative()">Explore Knowledge Graph →</button>
+            <button class="narrative-btn" onclick="dismissNarrative()">Explore Graph →</button>
         </div>
     </div>
 
@@ -317,9 +246,9 @@ _GRAPH_HTML = """<!DOCTYPE html>
     <script>
     // ── Config ──────────────────────────────────────────
     const nodeColors = {
-        asset: '#6366f1', component: '#8b5cf6', failure_mode: '#ef4444',
-        symptom: '#f59e0b', action: '#10b981', condition: '#06b6d4',
-        location: '#ec4899', part: '#64748b'
+        asset: '#003366', component: '#336699', failure_mode: '#cc0000',
+        symptom: '#cc6600', action: '#006633', condition: '#006699',
+        location: '#993366', part: '#555555'
     };
     const nodeRadius = {
         asset: 22, component: 12, failure_mode: 11, symptom: 11,
@@ -330,13 +259,13 @@ _GRAPH_HTML = """<!DOCTYPE html>
         action: 10, condition: 0, location: 9, part: 0
     };
     const edgeColors = {
-        has_component: '#3b82f6', has_symptom: '#f59e0b',
-        caused_by: '#ef4444', resolves: '#10b981',
-        has_parameter: '#8b5cf6', indicates: '#f97316',
-        requires_part: '#06b6d4', related_to: '#6b7280',
-        component_of: '#3b82f6', manufactured_by: '#64748b',
-        located_at: '#ec4899', monitors: '#06b6d4',
-        operated_by: '#8b5cf6'
+        has_component: '#336699', has_symptom: '#cc6600',
+        caused_by: '#cc0000', resolves: '#006633',
+        has_parameter: '#6633aa', indicates: '#cc6600',
+        requires_part: '#006699', related_to: '#888888',
+        component_of: '#336699', manufactured_by: '#555555',
+        located_at: '#993366', monitors: '#006699',
+        operated_by: '#6633aa'
     };
 
     // ── State ───────────────────────────────────────────
@@ -351,8 +280,8 @@ _GRAPH_HTML = """<!DOCTYPE html>
         .on('zoom', (e) => g.attr('transform', e.transform)));
 
     function resizeSVG() {
-        const w = window.innerWidth - 220;
-        const h = window.innerHeight - 52;
+        const w = window.innerWidth - 200;
+        const h = window.innerHeight - 42;
         svg.attr('width', w).attr('height', h).attr('viewBox', [0, 0, w, h]);
     }
     resizeSVG();
@@ -370,60 +299,37 @@ _GRAPH_HTML = """<!DOCTYPE html>
         allNodes = data.nodes;
         allEdges = data.edges;
 
-        // Stats
         document.getElementById('stat-nodes').textContent = allNodes.length;
         document.getElementById('stat-edges').textContent = allEdges.length;
         const density = allNodes.length > 0
             ? (allEdges.length / allNodes.length).toFixed(1) : '0';
         document.getElementById('stat-density').textContent = density + 'x';
 
-        // Count documents
-        const docs = new Set();
-        allNodes.forEach(n => {
-            if (n.attributes) {
-                if (n.attributes.created_by) docs.add(n.attributes.created_by);
-                if (n.attributes.last_updated_by) docs.add(n.attributes.last_updated_by);
-            }
-        });
-        document.getElementById('stat-docs').textContent = docs.size;
-
-        // Build filter checkboxes
         buildFilters();
-
-        // Initially hide conditions and parts (reduce clutter)
         activeFilters.delete('condition');
         activeFilters.delete('part');
         document.querySelectorAll('#filter-list input').forEach(cb => {
-            if (cb.dataset.type === 'condition' || cb.dataset.type === 'part') {
-                cb.checked = false;
-            }
+            if (cb.dataset.type === 'condition' || cb.dataset.type === 'part') cb.checked = false;
         });
 
         renderGraph();
 
-        // Show reasoning button if graph has data
         if (allNodes.length > 0) {
             document.getElementById('reason-section').style.display = 'block';
-        }
-
-        // Auto-dismiss narrative if graph has data
-        if (allNodes.length > 0) {
             setTimeout(() => dismissNarrative(), 800);
         }
     }
 
     function buildFilters() {
         const counts = {};
-        allNodes.forEach(n => {
-            counts[n.type] = (counts[n.type] || 0) + 1;
-        });
+        allNodes.forEach(n => { counts[n.type] = (counts[n.type] || 0) + 1; });
         const list = document.getElementById('filter-list');
         list.innerHTML = '';
         const defaultOn = ['asset','component','failure_mode','symptom','action','location'];
         Object.entries(counts).sort((a,b) => b[1] - a[1]).forEach(([type, count]) => {
             const checked = defaultOn.includes(type);
             if (checked) activeFilters.add(type);
-            const color = nodeColors[type] || '#6b7280';
+            const color = nodeColors[type] || '#888';
             const label = type.replace(/_/g, ' ');
             list.innerHTML += `
                 <label class="filter-item">
@@ -459,18 +365,16 @@ _GRAPH_HTML = """<!DOCTYPE html>
                 const tn = (d.target.name || '').toLowerCase();
                 if (!sn.includes(q) && !tn.includes(q)) return 0.03;
             }
-            return 0.4;
+            return 0.5;
         });
     }
 
     // ── Render ───────────────────────────────────────────
     function renderGraph() {
         g.selectAll('*').remove();
-        const w = window.innerWidth - 220;
-        const h = window.innerHeight - 52;
+        const w = window.innerWidth - 200;
+        const h = window.innerHeight - 42;
 
-        // Filter nodes
-        const visibleTypes = activeFilters;
         const nodes = allNodes;
         const nodeIds = new Set(nodes.map(n => n.id));
         const edges = allEdges.filter(e => {
@@ -483,15 +387,12 @@ _GRAPH_HTML = """<!DOCTYPE html>
             .force('link', d3.forceLink(edges).id(d => d.id).distance(90))
             .force('charge', d3.forceManyBody().strength(-200))
             .force('center', d3.forceCenter(w / 2, h / 2))
-            .force('collision', d3.forceCollide().radius(d =>
-                (nodeRadius[d.type] || 8) + 4));
+            .force('collision', d3.forceCollide().radius(d => (nodeRadius[d.type] || 8) + 4));
 
-        // Edges with relationship-type colors
         linkElements = g.append('g').selectAll('line').data(edges).join('line')
             .attr('class', 'link')
-            .attr('stroke', d => edgeColors[d.type] || '#3b3b52');
+            .attr('stroke', d => edgeColors[d.type] || '#aaa');
 
-        // Nodes with hierarchy
         nodeElements = g.append('g').selectAll('g').data(nodes).join('g')
             .attr('class', 'node')
             .call(d3.drag()
@@ -502,15 +403,15 @@ _GRAPH_HTML = """<!DOCTYPE html>
 
         nodeElements.append('circle')
             .attr('r', d => nodeRadius[d.type] || 8)
-            .attr('fill', d => nodeColors[d.type] || '#6b7280')
-            .attr('stroke', d => d3.color(nodeColors[d.type] || '#6b7280').brighter(0.6))
+            .attr('fill', d => nodeColors[d.type] || '#888')
+            .attr('stroke', d => d3.color(nodeColors[d.type] || '#888').brighter(0.5))
             .on('click', (event, d) => openInspector(d))
             .on('mouseover', (event, d) => highlightNeighbors(d))
             .on('mouseout', () => clearHighlight());
 
         nodeElements.append('text')
             .attr('class', 'node-label')
-            .attr('dy', d => (nodeRadius[d.type] || 8) + 12)
+            .attr('dy', d => (nodeRadius[d.type] || 8) + 14)
             .attr('font-size', d => (nodeFontSize[d.type] || 10) + 'px')
             .text(d => {
                 const fs = nodeFontSize[d.type];
@@ -528,7 +429,7 @@ _GRAPH_HTML = """<!DOCTYPE html>
         applyFilters();
     }
 
-    // ── Highlight neighbors on hover ────────────────────
+    // ── Highlight neighbors ─────────────────────────────
     function highlightNeighbors(d) {
         const neighborIds = new Set([d.id]);
         allEdges.forEach(e => {
@@ -555,62 +456,43 @@ _GRAPH_HTML = """<!DOCTYPE html>
         document.getElementById('insp-name').textContent = d.name;
         const typeEl = document.getElementById('insp-type');
         typeEl.textContent = d.type.replace(/_/g, ' ');
-        typeEl.style.background = nodeColors[d.type] + '22';
-        typeEl.style.color = nodeColors[d.type];
+        const tc = nodeColors[d.type] || '#888';
+        typeEl.style.background = tc + '18';
+        typeEl.style.color = tc;
+        typeEl.style.borderColor = tc;
 
-        // Build body
         let html = '';
-
-        // Evidence & confidence
         const evCount = d.attributes?.evidence_count || '1';
         const createdBy = d.attributes?.created_by || 'Unknown';
         const updatedBy = d.attributes?.last_updated_by || '';
-        html += `<div class="inspector-section">
-            <div class="inspector-section-title">Evidence</div>
-            <div class="inspector-stat"><span class="label">Documents</span><span class="value">${evCount}</span></div>
-            <div class="inspector-stat"><span class="label">Created by</span><span class="value">${createdBy}</span></div>`;
-        if (updatedBy) {
-            html += `<div class="inspector-stat"><span class="label">Last updated</span><span class="value">${updatedBy}</span></div>`;
-        }
+        html += '<div class="inspector-section">';
+        html += '<div class="inspector-section-title">Evidence</div>';
+        html += '<div class="inspector-stat"><span class="label">Documents</span><span class="value">' + evCount + '</span></div>';
+        html += '<div class="inspector-stat"><span class="label">Created by</span><span class="value">' + createdBy + '</span></div>';
+        if (updatedBy) html += '<div class="inspector-stat"><span class="label">Last updated</span><span class="value">' + updatedBy + '</span></div>';
         html += '</div>';
 
-        // Description
         if (d.description) {
-            html += `<div class="inspector-section">
-                <div class="inspector-section-title">Description</div>
-                <div style="font-size:12px;color:#9090a8;line-height:1.5">${d.description}</div>
-            </div>`;
+            html += '<div class="inspector-section"><div class="inspector-section-title">Description</div>';
+            html += '<div style="font-size:12px;color:#555;line-height:1.5">' + d.description + '</div></div>';
         }
 
-        // Connections
         const connections = [];
         allEdges.forEach(e => {
             const sid = typeof e.source === 'object' ? e.source.id : e.source;
             const tid = typeof e.target === 'object' ? e.target.id : e.target;
-            if (sid === d.id) {
-                const target = allNodes.find(n => n.id === tid);
-                if (target) connections.push({ rel: e.type, name: target.name, dir: '→' });
-            }
-            if (tid === d.id) {
-                const source = allNodes.find(n => n.id === sid);
-                if (source) connections.push({ rel: e.type, name: source.name, dir: '←' });
-            }
+            if (sid === d.id) { const t = allNodes.find(n => n.id === tid); if (t) connections.push({rel:e.type,name:t.name,dir:'→'}); }
+            if (tid === d.id) { const s = allNodes.find(n => n.id === sid); if (s) connections.push({rel:e.type,name:s.name,dir:'←'}); }
         });
 
         if (connections.length > 0) {
-            html += `<div class="inspector-section">
-                <div class="inspector-section-title">Connections (${connections.length})</div>`;
+            html += '<div class="inspector-section"><div class="inspector-section-title">Connections (' + connections.length + ')</div>';
             connections.slice(0, 20).forEach(c => {
-                html += `<div class="inspector-connection">
-                    <span class="rel">${c.rel.replace(/_/g,' ')}</span> ${c.dir} ${c.name}
-                </div>`;
+                html += '<div class="inspector-connection"><span class="rel">' + c.rel.replace(/_/g,' ') + '</span> ' + c.dir + ' ' + c.name + '</div>';
             });
-            if (connections.length > 20) {
-                html += `<div style="font-size:11px;color:#5a5a6e;margin-top:4px">+${connections.length - 20} more</div>`;
-            }
+            if (connections.length > 20) html += '<div style="font-size:10px;color:#888;margin-top:3px">+' + (connections.length-20) + ' more</div>';
             html += '</div>';
         }
-
         document.getElementById('insp-body').innerHTML = html;
     }
 
@@ -637,7 +519,6 @@ _GRAPH_HTML = """<!DOCTYPE html>
             const types = viewFilters[view];
             document.querySelectorAll('#filter-list input').forEach(cb => {
                 if (types === null) {
-                    // All view: restore defaults
                     const defaultOn = ['asset','component','failure_mode','symptom','action','location'];
                     cb.checked = defaultOn.includes(cb.dataset.type);
                 } else {
@@ -664,7 +545,6 @@ _GRAPH_HTML = """<!DOCTYPE html>
     });
 
     function animateReasoning(chain) {
-        // Clear previous highlights
         nodeElements.select('circle').classed('reasoning-pulse', false);
         linkElements.classed('highlighted', false);
 
@@ -673,13 +553,10 @@ _GRAPH_HTML = """<!DOCTYPE html>
             step.evidence.forEach(ev => {
                 delay += 400;
                 setTimeout(() => {
-                    // Highlight source node
                     nodeElements.filter(n => n.name === ev.source_name)
                         .select('circle').classed('reasoning-pulse', true);
-                    // Highlight target node
                     nodeElements.filter(n => n.name === ev.target_name)
                         .select('circle').classed('reasoning-pulse', true);
-                    // Highlight edge
                     linkElements.filter(e => {
                         const sn = typeof e.source === 'object' ? e.source.name : '';
                         const tn = typeof e.target === 'object' ? e.target.name : '';
@@ -690,7 +567,6 @@ _GRAPH_HTML = """<!DOCTYPE html>
             });
         });
 
-        // Clear after animation
         setTimeout(() => {
             nodeElements.select('circle').classed('reasoning-pulse', false);
             linkElements.classed('highlighted', false);
