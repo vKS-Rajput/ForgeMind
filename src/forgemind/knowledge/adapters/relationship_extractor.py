@@ -38,6 +38,7 @@ from forgemind.knowledge.domain.value_objects import (
     RelationType,
 )
 from forgemind.shared.logging import get_logger
+from forgemind.shared.types import EntityId
 
 logger = get_logger(__name__)
 
@@ -511,8 +512,8 @@ class RelationshipExtractor:
         self,
         results: list[KnowledgeRelationship],
         seen: set[tuple[str, str, str]],
-        source_id: str,
-        target_id: str,
+        source_id: EntityId,
+        target_id: EntityId,
         relation_type: RelationType,
         doc_id: str,
         method: str,
@@ -525,9 +526,7 @@ class RelationshipExtractor:
         seen.add(key)
         results.append(
             KnowledgeRelationship.create(
-                # pyrefly: ignore [bad-argument-type]
                 source_entity_id=source_id,
-                # pyrefly: ignore [bad-argument-type]
                 target_entity_id=target_id,
                 relation_type=relation_type,
                 provenance=Provenance(

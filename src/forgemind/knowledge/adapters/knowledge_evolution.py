@@ -35,6 +35,7 @@ Dependencies: graph.adapters.networkx_repository, knowledge.domain.*
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from forgemind.graph.adapters.networkx_repository import NetworkXGraphRepository
 from forgemind.knowledge.domain.entities import (
@@ -154,7 +155,7 @@ class MergeResult:
     confidence_changes: list[ConfidenceChange] = field(default_factory=list)
     contradictions: list[Contradiction] = field(default_factory=list)
 
-    def knowledge_delta(self) -> dict:
+    def knowledge_delta(self) -> dict[str, Any]:
         """Compute the human-readable knowledge delta.
 
         This is the key feature that makes uploads meaningful.

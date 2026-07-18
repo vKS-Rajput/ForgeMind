@@ -389,8 +389,7 @@ class ReasoningService:
     ) -> tuple[int, list[EvidenceLink]]:
         """Discover components of the focal entity."""
         neighbors = graph.get_neighbors(
-            # pyrefly: ignore [bad-argument-type]
-            str(focal.id),
+            focal.id,
             relation_types=[RelationType.HAS_COMPONENT],
         )
         if not neighbors:
@@ -436,8 +435,7 @@ class ReasoningService:
     ) -> tuple[int, list[EvidenceLink]]:
         """Discover symptoms associated with the focal entity."""
         neighbors = graph.get_neighbors(
-            # pyrefly: ignore [bad-argument-type]
-            str(focal.id),
+            focal.id,
             relation_types=[RelationType.HAS_SYMPTOM],
         )
         if not neighbors:
@@ -484,8 +482,7 @@ class ReasoningService:
         """Discover causes by traversing symptom -> CAUSED_BY edges."""
         # First find symptoms
         symptoms = graph.get_neighbors(
-            # pyrefly: ignore [bad-argument-type]
-            str(focal.id),
+            focal.id,
             relation_types=[RelationType.HAS_SYMPTOM],
         )
 
@@ -494,8 +491,7 @@ class ReasoningService:
 
         for symptom in symptoms:
             causes = graph.get_neighbors(
-                # pyrefly: ignore [bad-argument-type]
-                str(symptom.id),
+                symptom.id,
                 relation_types=[RelationType.CAUSED_BY],
             )
             for cause in causes:
@@ -548,8 +544,7 @@ class ReasoningService:
         """Discover resolution actions from symptoms and causes."""
         # Look for actions that RESOLVE symptoms
         symptoms = graph.get_neighbors(
-            # pyrefly: ignore [bad-argument-type]
-            str(focal.id),
+            focal.id,
             relation_types=[RelationType.HAS_SYMPTOM],
         )
 
@@ -560,8 +555,7 @@ class ReasoningService:
         for entity_type in [EntityType.ACTION]:
             for action in graph.query_by_type(entity_type):
                 targets = graph.get_neighbors(
-                    # pyrefly: ignore [bad-argument-type]
-                    str(action.id),
+                    action.id,
                     relation_types=[RelationType.RESOLVES],
                 )
                 for target in targets:
@@ -612,8 +606,7 @@ class ReasoningService:
     ) -> tuple[int, list[EvidenceLink]]:
         """Discover operating parameters linked to the focal entity."""
         neighbors = graph.get_neighbors(
-            # pyrefly: ignore [bad-argument-type]
-            str(focal.id),
+            focal.id,
             relation_types=[RelationType.HAS_PARAMETER],
         )
         if not neighbors:
