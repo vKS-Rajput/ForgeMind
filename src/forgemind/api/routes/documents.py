@@ -466,6 +466,7 @@ async def list_documents(request: Request) -> list[dict[str, Any]]:
             "document_type": doc.document_type.value,
             "content_hash": doc.content_hash[:16] + "...",
             "page_count": doc.page_count,
+            "chunk_count": len(state.chunk_repository.get_chunks_for_document(doc.id)),
             "ingested_at": doc.ingested_at.isoformat(),
         }
         for doc in documents

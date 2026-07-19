@@ -517,6 +517,7 @@ class NetworkXGraphRepository:
                         "type": entity_type,
                         "group": type_groups.get(entity_type, 8),
                         "description": data.get("description", ""),
+                        "confidence": float(data.get("confidence", 0.85)),
                     }
                 )
 

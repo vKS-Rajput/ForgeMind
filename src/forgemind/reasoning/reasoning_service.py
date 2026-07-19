@@ -356,15 +356,26 @@ class ReasoningService:
             EntityType.LOCATION: 1,
         }
 
+        import re
+
+        query_normalized = re.sub(r"[^a-z0-9]", "", query_lower)
+
         for entity in all_entities:
             name_lower = entity.name.lower()
+            name_normalized = re.sub(r"[^a-z0-9]", "", name_lower)
+
             if name_lower in query_lower or query_lower in name_lower:
                 # Exact or near-exact match
                 score = 100 + type_priority.get(entity.entity_type, 0)
-            elif any(word in query_lower for word in name_lower.split() if len(word) > 3):
+            elif name_normalized and (
+                name_normalized in query_normalized or query_normalized in name_normalized
+            ):
+                # Normalized match (ignoring hyphens, spaces, and punctuation)
+                score = 90 + type_priority.get(entity.entity_type, 0)
+            elif any(word in query_lower for word in name_lower.split() if len(word) > 2):
                 # Partial word match
                 matching_words = sum(
-                    1 for word in name_lower.split() if len(word) > 3 and word in query_lower
+                    1 for word in name_lower.split() if len(word) > 2 and word in query_lower
                 )
                 score = matching_words * 10 + type_priority.get(entity.entity_type, 0)
             else:
