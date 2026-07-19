@@ -164,7 +164,6 @@ class DocumentType(enum.Enum):
     """Document type could not be determined."""
 
 
-
 # ── Severity Levels ──────────────────────────────────────────────
 
 

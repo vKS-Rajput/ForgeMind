@@ -115,4 +115,3 @@ class TestCrossDocumentContradictions:
 
         # Same document internal mentions should NOT produce a cross-document contradiction
         assert merge_res.contradictions_detected == 0
-

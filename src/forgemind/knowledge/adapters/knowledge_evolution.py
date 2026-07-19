@@ -628,9 +628,12 @@ class KnowledgeEvolutionEngine:
                                     )
                                     result.contradictions.append(contradiction)
                                     result.contradictions_detected += 1
-                                    
+
                                     # Record contradiction event
-                                    registry_key = (entity.canonical_name, entity.entity_type.value)
+                                    registry_key = (
+                                        entity.canonical_name,
+                                        entity.entity_type.value,
+                                    )
                                     new_conf = 0.5
 
                                     result.events.append(
@@ -678,7 +681,6 @@ class KnowledgeEvolutionEngine:
                                 )
                                 result.contradictions.append(contradiction)
                                 result.contradictions_detected += 1
-
 
     def _get_current_confidence(self, registry_key: tuple[str, str]) -> float:
         """Get the current computed confidence for an entity.

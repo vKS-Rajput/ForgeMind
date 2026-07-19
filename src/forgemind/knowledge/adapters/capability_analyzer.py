@@ -27,23 +27,80 @@ logger = get_logger(__name__)
 
 INDUSTRIAL_TERMS: set[str] = {
     # Assets & Equipment
-    "pump", "compressor", "valve", "motor", "turbine", "gearbox", "bearing",
-    "impeller", "coupling", "seal", "stator", "rotor", "actuator", "boiler",
-    "chiller", "conveyor", "vessel", "heat exchanger", "piping", "flange",
+    "pump",
+    "compressor",
+    "valve",
+    "motor",
+    "turbine",
+    "gearbox",
+    "bearing",
+    "impeller",
+    "coupling",
+    "seal",
+    "stator",
+    "rotor",
+    "actuator",
+    "boiler",
+    "chiller",
+    "conveyor",
+    "vessel",
+    "heat exchanger",
+    "piping",
+    "flange",
     # Symptoms & Conditions
-    "vibration", "overheating", "cavitation", "leak", "leakage", "pressure",
-    "temperature", "noise", "alignment", "misalignment", "wear", "corrosion",
-    "friction", "discharge", "flow rate", "rpm", "current", "voltage",
+    "vibration",
+    "overheating",
+    "cavitation",
+    "leak",
+    "leakage",
+    "pressure",
+    "temperature",
+    "noise",
+    "alignment",
+    "misalignment",
+    "wear",
+    "corrosion",
+    "friction",
+    "discharge",
+    "flow rate",
+    "rpm",
+    "current",
+    "voltage",
     # Failure Modes & Maintenance
-    "failure", "fault", "breakdown", "tripped", "seized", "damaged", "repair",
-    "replaced", "inspected", "maintenance", "overhaul", "lubrication",
-    "tolerance", "vibration analysis", "root cause", "corrective",
+    "failure",
+    "fault",
+    "breakdown",
+    "tripped",
+    "seized",
+    "damaged",
+    "repair",
+    "replaced",
+    "inspected",
+    "maintenance",
+    "overhaul",
+    "lubrication",
+    "tolerance",
+    "vibration analysis",
+    "root cause",
+    "corrective",
 }
 
 NON_INDUSTRIAL_INDICATORS: set[str] = {
-    "invoice", "financial report", "tax return", "balance sheet", "recipe",
-    "menu", "novel", "poetry", "statement of account", "resume", "curriculum vitae",
-    "purchase order", "shipping manifest", "marketing brochure", "newsletter",
+    "invoice",
+    "financial report",
+    "tax return",
+    "balance sheet",
+    "recipe",
+    "menu",
+    "novel",
+    "poetry",
+    "statement of account",
+    "resume",
+    "curriculum vitae",
+    "purchase order",
+    "shipping manifest",
+    "marketing brochure",
+    "newsletter",
 }
 
 
@@ -116,7 +173,9 @@ class DocumentCapabilityAnalyzer:
                     "reasoning": False,
                 },
                 warnings=["The uploaded document contains no extractable text."],
-                recommendations=["Please upload a readable PDF containing text or OCR-processed content."],
+                recommendations=[
+                    "Please upload a readable PDF containing text or OCR-processed content."
+                ],
             )
 
         match_count = sum(1 for w in words if w in INDUSTRIAL_TERMS)
@@ -166,13 +225,23 @@ class DocumentCapabilityAnalyzer:
             return DocumentType.P_AND_ID, 0.90
         if any(kw in combined for kw in ["spreadsheet", "excel log", ".xlsx", "csv export"]):
             return DocumentType.SPREADSHEET, 0.85
-        if any(kw in combined for kw in ["standard operating procedure", "sop ", "safety procedure"]):
+        if any(
+            kw in combined for kw in ["standard operating procedure", "sop ", "safety procedure"]
+        ):
             return DocumentType.SOP, 0.85
-        if any(kw in combined for kw in ["manual", "operating manual", "user manual", "specification"]):
+        if any(
+            kw in combined for kw in ["manual", "operating manual", "user manual", "specification"]
+        ):
             return DocumentType.MANUAL, 0.90
-        if any(kw in combined for kw in ["incident report", "failure report", "root cause", "breakdown"]):
+        if any(
+            kw in combined
+            for kw in ["incident report", "failure report", "root cause", "breakdown"]
+        ):
             return DocumentType.INCIDENT_REPORT, 0.90
-        if any(kw in combined for kw in ["inspection report", "inspection date", "inspector", "findings"]):
+        if any(
+            kw in combined
+            for kw in ["inspection report", "inspection date", "inspector", "findings"]
+        ):
             return DocumentType.INSPECTION_REPORT, 0.90
         if any(kw in combined for kw in ["work order", "service order", "repair order", "cmms"]):
             return DocumentType.WORK_ORDER, 0.80
@@ -203,16 +272,21 @@ class DocumentCapabilityAnalyzer:
                 "reasoning": False,
             }
             warnings.append(
-                f"'{title}' does not appear to contain industrial maintenance knowledge (Relevance: {round(relevance_score*100)}%)."
+                f"'{title}' does not appear to contain industrial maintenance knowledge (Relevance: {round(relevance_score * 100)}%)."
             )
-            recommendations.extend([
-                "Upload an OEM Equipment Manual (e.g. Pump, Valve, Compressor)",
-                "Upload an Incident Report or Failure Analysis",
-                "Upload an Inspection Checklist or Maintenance Work Order",
-            ])
+            recommendations.extend(
+                [
+                    "Upload an OEM Equipment Manual (e.g. Pump, Valve, Compressor)",
+                    "Upload an Incident Report or Failure Analysis",
+                    "Upload an Inspection Checklist or Maintenance Work Order",
+                ]
+            )
             return support_level, available_features, warnings, recommendations
 
-        if doc_type in (DocumentType.WORK_ORDER, DocumentType.SOP, DocumentType.SPREADSHEET) or relevance_score < 0.55:
+        if (
+            doc_type in (DocumentType.WORK_ORDER, DocumentType.SOP, DocumentType.SPREADSHEET)
+            or relevance_score < 0.55
+        ):
             support_level = "partial"
             available_features = {
                 "parse": True,

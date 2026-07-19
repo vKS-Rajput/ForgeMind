@@ -97,7 +97,6 @@ class TestDocumentType:
         assert actual == expected
 
 
-
 class TestSeverity:
     """Severity enum coverage."""
 

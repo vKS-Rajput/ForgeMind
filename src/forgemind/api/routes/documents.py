@@ -117,7 +117,6 @@ class IngestionResponse(BaseModel):
     knowledge_delta: dict[str, Any]
 
 
-
 class TextIngestionRequest(BaseModel):
     """Request body for direct text ingestion."""
 
@@ -359,7 +358,11 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
             )
 
         # Phase 3: Build Knowledge Graph (normalize + extract + evolve)
-        detected_type = capability.document_type if capability.document_type != DocumentType.UNKNOWN else _detect_document_type(result.document.title, full_text)
+        detected_type = (
+            capability.document_type
+            if capability.document_type != DocumentType.UNKNOWN
+            else _detect_document_type(result.document.title, full_text)
+        )
 
         knowledge = _build_knowledge_graph(
             state=state,
@@ -397,7 +400,6 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
         ) from error
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
-
 
 
 @router.post(

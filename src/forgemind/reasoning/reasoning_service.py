@@ -825,7 +825,6 @@ class ReasoningService:
         )
         return f"{reasoning.entity_name} -- {symptom} (most likely cause: {top_cause})"
 
-
     def _build_diagnosis(
         self,
         reasoning: ReasoningResult,

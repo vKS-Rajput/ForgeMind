@@ -109,4 +109,3 @@ def create_app_state() -> AppState:
         capability_analyzer=capability_analyzer,
         settings=settings,
     )
-
