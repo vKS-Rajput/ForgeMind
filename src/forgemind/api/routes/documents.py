@@ -25,8 +25,7 @@ Routes:
   GET    /api/v1/documents/{id}/analyze - Analyze a document for insights.
 """
 
-from __future__ import annotations
-
+import asyncio
 import shutil
 import tempfile
 from pathlib import Path
@@ -112,9 +111,11 @@ class IngestionResponse(BaseModel):
     page_count: int
     chunk_count: int
     analysis: dict[str, Any]
+    capability: dict[str, Any] = {}
     knowledge_graph: KnowledgeGraphStats
     knowledge_events: list[KnowledgeEventResponse]
     knowledge_delta: dict[str, Any]
+
 
 
 class TextIngestionRequest(BaseModel):
@@ -317,30 +318,49 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
     if not file.filename:
         raise HTTPException(status_code=400, detail="No file provided.")
 
+    # Sanitize file name to prevent path traversal
+    safe_filename = Path(file.filename).name
+
     logger.info(
         "api_upload_received",
-        filename=file.filename,
+        filename=safe_filename,
         content_type=file.content_type,
     )
 
     # Save uploaded file to a temp location for pdfplumber
     temp_dir = tempfile.mkdtemp(prefix="forgemind_upload_")
-    temp_path = Path(temp_dir) / file.filename
+    temp_path = Path(temp_dir) / safe_filename
 
     try:
         with open(temp_path, "wb") as temp_file:
             shutil.copyfileobj(file.file, temp_file)
 
-        # Phase 1: Ingest (parse + chunk + store)
-        result = state.ingestion_service.ingest_document(str(temp_path))
+        # Phase 1: Ingest (parse + chunk + store) using thread offloading
+        result = await asyncio.to_thread(state.ingestion_service.ingest_document, str(temp_path))
 
-        # Phase 2: Analyze (pattern extraction)
+        # Phase 2: Analyze (pattern extraction + capability assessment)
         chunk_texts = [chunk.content for chunk in result.chunks]
         full_text = " ".join(chunk_texts)
         analysis = _build_analysis_dict(full_text)
 
+        # Capability Assessment
+        capability = state.capability_analyzer.analyze(
+            title=result.document.title,
+            text=full_text,
+            page_count=result.document.page_count,
+        )
+
+        if capability.support_level == "unsupported":
+            # Gracefully handle unsupported/non-industrial document uploads
+            logger.warning(
+                "api_upload_unsupported_document",
+                filename=safe_filename,
+                relevance=capability.relevance_score,
+            )
+
         # Phase 3: Build Knowledge Graph (normalize + extract + evolve)
-        detected_type = _detect_document_type(result.document.title, full_text)
+        detected_type = capability.document_type if capability.document_type != DocumentType.UNKNOWN else _detect_document_type(result.document.title, full_text)
+
         knowledge = _build_knowledge_graph(
             state=state,
             full_text=full_text,
@@ -357,6 +377,7 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
             "page_count": result.document.page_count,
             "chunk_count": len(result.chunks),
             "analysis": analysis,
+            "capability": capability.to_dict(),
             **knowledge,
         }
 
@@ -367,7 +388,7 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
     except Exception as error:
         logger.error(
             "api_upload_failed",
-            filename=file.filename,
+            filename=safe_filename,
             error=str(error),
         )
         raise HTTPException(
@@ -376,6 +397,7 @@ async def upload_document(request: Request, file: UploadFile) -> dict[str, Any]:
         ) from error
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 
 @router.post(

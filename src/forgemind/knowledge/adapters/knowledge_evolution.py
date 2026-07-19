@@ -602,78 +602,83 @@ class KnowledgeEvolutionEngine:
             new_desc = entity.description or ""
             existing_desc = existing.description or ""
 
-            new_intervals = interval_pattern.findall(new_desc)
-            existing_intervals = interval_pattern.findall(existing_desc)
+            created_by = existing.attributes.get("created_by", "previous document")
 
-            # If both mention intervals and they differ significantly
-            if new_intervals and existing_intervals:
-                for ni in new_intervals:
-                    for ei in existing_intervals:
-                        ni_val, ei_val = int(ni), int(ei)
-                        if ni_val != ei_val and min(ni_val, ei_val) > 0:
-                            ratio = max(ni_val, ei_val) / min(ni_val, ei_val)
-                            if ratio >= 1.5:  # 50%+ difference = contradiction
-                                created_by = existing.attributes.get(
-                                    "created_by", "previous document"
-                                )
+            # Only compare cross-document evidence
+            if created_by != source_document_title:
+                new_intervals = interval_pattern.findall(new_desc)
+                existing_intervals = interval_pattern.findall(existing_desc)
+
+                if new_intervals and existing_intervals:
+                    for ni in new_intervals:
+                        for ei in existing_intervals:
+                            ni_val, ei_val = int(ni), int(ei)
+                            if ni_val != ei_val and min(ni_val, ei_val) > 0:
+                                ratio = max(ni_val, ei_val) / min(ni_val, ei_val)
+                                if ratio >= 1.5:  # 50%+ difference = contradiction
+                                    contradiction = Contradiction(
+                                        fact=f"{entity.name} maintenance interval",
+                                        source_a=f"{created_by} ({ei_val} days)",
+                                        source_b=f"{source_document_title} ({ni_val} days)",
+                                        resolution=(
+                                            f"Recommend using shorter interval: "
+                                            f"{min(ni_val, ei_val)} days "
+                                            f"(conservative approach based on failure evidence)"
+                                        ),
+                                    )
+                                    result.contradictions.append(contradiction)
+                                    result.contradictions_detected += 1
+                                    
+                                    # Record contradiction event
+                                    registry_key = (entity.canonical_name, entity.entity_type.value)
+                                    new_conf = 0.5
+
+                                    result.events.append(
+                                        KnowledgeEvent.create(
+                                            event_type=KnowledgeEventType.CONTRADICTION_DETECTED,
+                                            entity_name=entity.name,
+                                            new_confidence=new_conf,
+                                            evidence_count=len(
+                                                self._evidence_registry.get(
+                                                    registry_key,
+                                                    [],
+                                                )
+                                            ),
+                                            source_document_id=source_document_id,
+                                            source_document_title=source_document_title,
+                                            details=(
+                                                f"Contradiction: {created_by} specifies "
+                                                f"{ei_val}-day interval, but "
+                                                f"{source_document_title} indicates "
+                                                f"{ni_val}-day interval. "
+                                                f"Recommend conservative {min(ni_val, ei_val)}-day "
+                                                f"interval."
+                                            ),
+                                        )
+                                    )
+
+                # Check for temperature contradictions
+                new_temps = temp_pattern.findall(new_desc)
+                existing_temps = temp_pattern.findall(existing_desc)
+
+                if new_temps and existing_temps:
+                    for nt in new_temps:
+                        for et in existing_temps:
+                            nt_val, et_val = int(nt), int(et)
+                            if abs(nt_val - et_val) >= 15:  # 15°C+ difference
                                 contradiction = Contradiction(
-                                    fact=f"{entity.name} maintenance interval",
-                                    source_a=f"{created_by} ({ei_val} days)",
-                                    source_b=f"{source_document_title} ({ni_val} days)",
+                                    fact=f"{entity.name} temperature threshold",
+                                    source_a=f"{created_by} ({et_val} deg C)",
+                                    source_b=f"{source_document_title} ({nt_val} deg C)",
                                     resolution=(
-                                        f"Recommend using shorter interval: "
-                                        f"{min(ni_val, ei_val)} days "
-                                        f"(conservative approach based on failure evidence)"
+                                        f"Actual operating temperature ({max(nt_val, et_val)} deg C) "
+                                        f"exceeds design assumption ({min(nt_val, et_val)} deg C). "
+                                        f"Adjust maintenance intervals accordingly."
                                     ),
                                 )
                                 result.contradictions.append(contradiction)
                                 result.contradictions_detected += 1
-                                result.events.append(
-                                    KnowledgeEvent.create(
-                                        event_type=KnowledgeEventType.CONTRADICTION_DETECTED,
-                                        entity_name=entity.name,
-                                        new_confidence=0.5,
-                                        evidence_count=len(
-                                            self._evidence_registry.get(
-                                                (entity.canonical_name, entity.entity_type.value),
-                                                [],
-                                            )
-                                        ),
-                                        source_document_id=source_document_id,
-                                        source_document_title=source_document_title,
-                                        details=(
-                                            f"Contradiction: {created_by} specifies "
-                                            f"{ei_val}-day interval, but "
-                                            f"{source_document_title} indicates "
-                                            f"{ni_val}-day interval. "
-                                            f"Recommend conservative {min(ni_val, ei_val)}-day "
-                                            f"interval."
-                                        ),
-                                    )
-                                )
 
-            # Check for temperature contradictions
-            new_temps = temp_pattern.findall(new_desc)
-            existing_temps = temp_pattern.findall(existing_desc)
-
-            if new_temps and existing_temps:
-                for nt in new_temps:
-                    for et in existing_temps:
-                        nt_val, et_val = int(nt), int(et)
-                        if abs(nt_val - et_val) >= 15:  # 15°C+ difference
-                            created_by = existing.attributes.get("created_by", "previous document")
-                            contradiction = Contradiction(
-                                fact=f"{entity.name} temperature threshold",
-                                source_a=f"{created_by} ({et_val} deg C)",
-                                source_b=f"{source_document_title} ({nt_val} deg C)",
-                                resolution=(
-                                    f"Actual operating temperature ({max(nt_val, et_val)} deg C) "
-                                    f"exceeds design assumption ({min(nt_val, et_val)} deg C). "
-                                    f"Adjust maintenance intervals accordingly."
-                                ),
-                            )
-                            result.contradictions.append(contradiction)
-                            result.contradictions_detected += 1
 
     def _get_current_confidence(self, registry_key: tuple[str, str]) -> float:
         """Get the current computed confidence for an entity.

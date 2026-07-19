@@ -725,18 +725,18 @@ class ReasoningService:
         # Get standard reasoning result first
         reasoning = self.reason(query, graph)
 
-        # Build decision envelope
+        # Build diagnosis with cross-document ranking first
+        diagnosis = self._build_diagnosis(reasoning, graph)
+
+        # Build decision envelope aligned with ranked diagnosis
         severity = self._classify_severity(reasoning)
-        problem_summary = self._summarize_problem(reasoning)
+        problem_summary = self._summarize_problem(reasoning, diagnosis)
 
         decision = {
             "problem": problem_summary,
             "severity": severity,
             "confidence": round(reasoning.confidence, 4),
         }
-
-        # Build diagnosis with cross-document ranking
-        diagnosis = self._build_diagnosis(reasoning, graph)
 
         # Build prioritized actions
         actions = self._build_actions(reasoning, severity)
@@ -804,14 +804,27 @@ class ReasoningService:
             return "medium"
         return "low"
 
-    def _summarize_problem(self, reasoning: ReasoningResult) -> str:
-        """Generate a concise problem summary."""
-        if not reasoning.possible_causes:
+    def _summarize_problem(
+        self,
+        reasoning: ReasoningResult,
+        diagnosis: dict[str, Any] | None = None,
+    ) -> str:
+        """Generate a concise problem summary aligned with diagnosis ranking."""
+        most_likely = diagnosis.get("most_likely_cause") if diagnosis else None
+        if most_likely:
+            top_cause = most_likely.get("cause", "Unknown")
+        elif reasoning.possible_causes:
+            top_cause = reasoning.possible_causes[0].get("cause", "Unknown")
+        else:
             return f"{reasoning.entity_name} -- no failure modes identified"
 
-        top_cause = reasoning.possible_causes[0].get("cause", "Unknown")
-        symptom = reasoning.possible_causes[0].get("symptom", "Unknown")
+        symptom = (
+            reasoning.possible_causes[0].get("symptom", "Operational Issue")
+            if reasoning.possible_causes
+            else "Operational Issue"
+        )
         return f"{reasoning.entity_name} -- {symptom} (most likely cause: {top_cause})"
+
 
     def _build_diagnosis(
         self,

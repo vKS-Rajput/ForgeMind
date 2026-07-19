@@ -467,11 +467,35 @@ function addFeedItem(d) {
 
     let html = '<div class="feed-item">';
     html += '<div class="title">📄 ' + (d.title||'Document') + '</div>';
+    
+    // Capability analysis badge
+    const cap = d.capability || {};
+    if (cap.support_level) {
+        const badgeColor = cap.support_level === 'full' ? '#007000' : (cap.support_level === 'partial' ? '#b86200' : '#c00');
+        const badgeBg = cap.support_level === 'full' ? '#e6ffe6' : (cap.support_level === 'partial' ? '#fff4e6' : '#ffe6e6');
+        html += '<div style="margin: 4px 0; font-size: 11px;">';
+        html += '<span style="background:'+badgeBg+'; color:'+badgeColor+'; border: 1px solid '+badgeColor+'; padding: 2px 6px; font-weight: bold;">';
+        html += (cap.support_level.toUpperCase()) + ' SUPPORT</span> ';
+        html += '<span style="color:#555;">Industrial Relevance: ' + Math.round((cap.relevance_score||0)*100) + '%</span>';
+        html += '</div>';
+    }
+
     html += '<div class="detail">';
     html += '+' + (kg.entities_created||0) + ' entities, ';
     html += '+' + (kg.relationships_created||0) + ' relationships';
     if (kg.relationships_strengthened > 0) html += ', ' + kg.relationships_strengthened + ' strengthened';
     html += '</div>';
+
+    // Capability Warnings & Recommendations
+    if (cap.warnings && cap.warnings.length > 0) {
+        cap.warnings.forEach(w => {
+            html += '<div class="contradiction" style="background:#fff3cd; color:#856404; border-color:#ffeeba;">⚠ ' + w + '</div>';
+        });
+    }
+    if (cap.recommendations && cap.recommendations.length > 0) {
+        html += '<div style="font-size:11px; color:#444; margin-top:3px; background:#f8f9fa; padding:4px; border:1px dashed #ccc;">';
+        html += '<b>💡 Recommended Actions:</b><br/>• ' + cap.recommendations.join('<br/>• ') + '</div>';
+    }
 
     // Confidence changes
     const confChanges = delta.confidence_changes || [];

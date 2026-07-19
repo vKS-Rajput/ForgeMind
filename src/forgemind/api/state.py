@@ -16,6 +16,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from forgemind.graph.adapters.networkx_repository import NetworkXGraphRepository
+from forgemind.knowledge.adapters.capability_analyzer import (
+    DocumentCapabilityAnalyzer,
+)
 from forgemind.knowledge.adapters.entity_normalizer import EntityNormalizer
 from forgemind.knowledge.adapters.ingestion_service import (
     IngestionApplicationService,
@@ -33,6 +36,7 @@ from forgemind.knowledge.adapters.pdf_parser import PdfDocumentParser
 from forgemind.knowledge.adapters.relationship_extractor import (
     RelationshipExtractor,
 )
+from forgemind.shared.config import AppSettings, get_settings
 
 
 @dataclass
@@ -51,6 +55,8 @@ class AppState:
         entity_normalizer: Converts raw strings to typed entities.
         relationship_extractor: Discovers edges from entities + chunks.
         knowledge_evolution: Merges new knowledge into the graph.
+        capability_analyzer: Evaluates document relevance and support matrix.
+        settings: Application settings loaded from environment/pydantic.
     """
 
     parser: PdfDocumentParser
@@ -61,6 +67,8 @@ class AppState:
     entity_normalizer: EntityNormalizer
     relationship_extractor: RelationshipExtractor
     knowledge_evolution: KnowledgeEvolutionEngine
+    capability_analyzer: DocumentCapabilityAnalyzer
+    settings: AppSettings
 
 
 def create_app_state() -> AppState:
@@ -72,6 +80,7 @@ def create_app_state() -> AppState:
     Returns:
         A fully wired AppState ready for use.
     """
+    settings = get_settings()
     parser = PdfDocumentParser()
     document_repository = InMemoryDocumentRepository()
     chunk_repository = InMemoryChunkRepository()
@@ -86,6 +95,7 @@ def create_app_state() -> AppState:
     entity_normalizer = EntityNormalizer()
     relationship_extractor = RelationshipExtractor()
     knowledge_evolution = KnowledgeEvolutionEngine()
+    capability_analyzer = DocumentCapabilityAnalyzer()
 
     return AppState(
         parser=parser,
@@ -96,4 +106,7 @@ def create_app_state() -> AppState:
         entity_normalizer=entity_normalizer,
         relationship_extractor=relationship_extractor,
         knowledge_evolution=knowledge_evolution,
+        capability_analyzer=capability_analyzer,
+        settings=settings,
     )
+

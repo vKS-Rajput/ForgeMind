@@ -1,18 +1,19 @@
 # ForgeMind
 
-> **AI-powered Industrial Knowledge Intelligence Platform**
+> **Industrial Knowledge Graph & Deterministic Decision Intelligence Platform**
 
-ForgeMind is an **AI-powered Industrial Knowledge Intelligence Platform** that continuously builds an evolving organizational memory from manuals, incident reports, and inspection records. Rather than simply retrieving documents, it parses ingestion data, extracts entity-relationship topologies, detects contradictions, explains decisions, and updates maintenance recommendations as new operational knowledge arrives.
-
----
-
-## The Industrial Challenge
-
-Industrial organizations lose critical maintenance knowledge when experienced engineers retire or change roles. Equipment manuals sit in siloed PDFs, incident reports are filed and forgotten, and inspection logs are disconnected. The same failures repeat because the organization lacks a unified, evolving memory.
-
-ForgeMind resolves this by constructing a deterministic, auditable **Knowledge Graph** directly from source documents, tracing confidence evolution, detecting conflicting evidence over time, and presenting recommendations through an integrated **Decision Intelligence Dashboard**.
+ForgeMind is an **Industrial Knowledge Graph & Decision Intelligence Platform** that continuously builds an evolving organizational memory from equipment manuals, incident reports, and inspection records. Instead of relying on non-deterministic LLM text generation, it constructs a deterministic, auditable Knowledge Graph, extracts entity-relationship topologies, computes evolving evidence confidence, detects cross-document contradictions, and explains decisions through graph traversal.
 
 ---
+
+## Technical Design & Architecture Focus
+
+ForgeMind prioritizes **100% reproducible, auditable, sub-second decision intelligence**:
+- **Deterministic Graph Reasoning**: Root cause analysis and recommendation generation use multi-hop graph traversal (BFS) over typed entity relationships, eliminating LLM hallucinations, API key requirements, and latency.
+- **Evolving Evidence Confidence**: Entity and relationship confidence automatically strengthens with repeated evidence across documents and degrades when cross-document contradictions are detected.
+- **Document Capability Analyzer**: Every uploaded document undergoes automated capability and industrial relevance assessment prior to graph evolution, providing graceful warnings and clear capability matrices for unsupported or partial formats.
+- **Designed for Hybrid RAG Extension**: The modular architecture defines explicit ports for future vector search (`retrieval/`) and LLM summary layers while keeping core reasoning deterministic.
+
 
 ## Quick Start
 
@@ -117,6 +118,23 @@ A visual interface serving:
 - **Metrics Bar** tracking entities, relationships, contradictions, and average confidence.
 - **What Changed** real-time feed displaying delta updates for each uploaded file.
 - **Timeline Replay** to visually play back how organizational knowledge evolved step-by-step.
+
+---
+
+## Document Robustness & Support Matrix
+
+ForgeMind includes an automated **Document Capability Analyzer** that evaluates uploaded files prior to ingestion. The system explicitly reports feature availability, support level, and graceful warnings rather than producing misleading outputs on unsupported document types:
+
+| Document Category | Detect | Parse Text | Extract Entities | Graph Evolution | Deterministic RCA | Support Level |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **OEM Manuals** | ✅ | ✅ | ✅ | ✅ | ✅ | **Full Support** |
+| **Incident Reports** | ✅ | ✅ | ✅ | ✅ | ✅ | **Full Support** |
+| **Inspection Reports** | ✅ | ✅ | ✅ | ✅ | ✅ | **Full Support** |
+| **Maintenance Work Orders** | ✅ | ✅ | ⚠️ Partial | ⚠️ Partial | ⚠️ Partial | **Partial Support** |
+| **Safety SOPs** | ✅ | ✅ | ⚠️ Partial | ⚠️ Partial | ❌ Excluded | **Partial Support** |
+| **P&ID Schematics** | ✅ | ❌ Excluded | ❌ Excluded | ❌ Excluded | ❌ Excluded | **Unsupported (Graceful Warning)** |
+| **Spreadsheets / Data Logs** | ✅ | ⚠️ Partial | ⚠️ Partial | ❌ Excluded | ❌ Excluded | **Unsupported (Graceful Warning)** |
+| **General / Non-Industrial** | ✅ | ✅ | ❌ Excluded | ❌ Excluded | ❌ Excluded | **Unsupported (Graceful Warning)** |
 
 ---
 

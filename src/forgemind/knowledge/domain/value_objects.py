@@ -148,8 +148,21 @@ class DocumentType(enum.Enum):
     WORK_ORDER = "work_order"
     """Maintenance work order or service request."""
 
+    SOP = "sop"
+    """Standard operating procedure or safety document."""
+
+    P_AND_ID = "p_and_id"
+    """Piping and Instrumentation Diagram / Technical Drawing."""
+
+    SPREADSHEET = "spreadsheet"
+    """Tabular maintenance record or data log."""
+
+    GENERAL = "general"
+    """General non-industrial or generic document."""
+
     UNKNOWN = "unknown"
     """Document type could not be determined."""
+
 
 
 # ── Severity Levels ──────────────────────────────────────────────
