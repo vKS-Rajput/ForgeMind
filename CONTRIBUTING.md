@@ -1,4 +1,4 @@
-# Contributing to ForgeMind
+# Contributing to Forge Mind
 
 Thank you for your interest in contributing to ForgeMind! This document provides guidelines and instructions for contributing.
 
